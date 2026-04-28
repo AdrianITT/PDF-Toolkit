@@ -64,8 +64,21 @@ const theme = {
   },
 };
 
+const darkTheme = {
+  token: {
+    colorPrimary: '#1890ff',
+    colorBgContainer: '#141414',
+    colorBgElevated: '#1f1f1f',
+    colorBgLayout: '#000000',
+    colorBorder: '#303030',
+    colorText: '#ffffff',
+    colorTextSecondary: '#ffffffb3',
+  },
+  algorithm: 'dark',
+};
+
 function App() {
-  const { activeModule, setActiveModule } = useAppStore();
+  const { activeModule, setActiveModule, theme: themeMode } = useAppStore();
 
   const CurrentModule = modules[activeModule].component;
 
@@ -75,14 +88,16 @@ function App() {
     label: data.label,
   }));
 
+  const currentTheme = themeMode === 'dark' ? darkTheme : theme;
+
   return (
-    <ConfigProvider theme={theme}>
-      <Layout style={{ minHeight: '100vh' }}>
+    <ConfigProvider theme={currentTheme as any}>
+      <Layout style={{ minHeight: '100vh' }} data-theme={themeMode}>
         <Sider
           width={200}
-          theme="light"
+          theme={themeMode as "light" | "dark"}
           style={{
-            borderRight: '1px solid #f0f0f0',
+            borderRight: `1px solid ${themeMode === 'dark' ? '#303030' : '#f0f0f0'}`,
           }}
         >
           <div
@@ -90,8 +105,9 @@ function App() {
               padding: 16,
               fontSize: 16,
               fontWeight: 'bold',
-              borderBottom: '1px solid #f0f0f0',
+              borderBottom: `1px solid ${themeMode === 'dark' ? '#303030' : '#f0f0f0'}`,
               textAlign: 'center',
+              color: themeMode === 'dark' ? '#fff' : 'inherit',
             }}
           >
             PDF Toolkit
@@ -105,7 +121,7 @@ function App() {
           />
         </Sider>
         <Layout>
-          <Content style={{ padding: 24, background: '#f5f5f5', overflow: 'auto' }}>
+          <Content style={{ padding: 24, background: themeMode === 'dark' ? '#000000' : '#f5f5f5', overflow: 'auto' }}>
             {CurrentModule}
           </Content>
         </Layout>

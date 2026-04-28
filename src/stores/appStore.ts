@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import type { PdfFile, PdfPage, AppModule } from '../types';
 
 export interface OverlayState {
@@ -11,6 +12,15 @@ export interface OverlayState {
   type: 'firma' | 'sello';
 }
 
+export interface RecentFile {
+  id: string;
+  name: string;
+  timestamp: number;
+  size: number;
+}
+
+export type ThemeMode = 'light' | 'dark';
+
 interface AppState {
   activeModule: AppModule;
   pdfFiles: PdfFile[];
@@ -20,6 +30,8 @@ interface AppState {
   error: string | null;
   overlay: OverlayState | null;
   currentPdfPath: string | null;
+  recentFiles: RecentFile[];
+  theme: ThemeMode;
   
   setActiveModule: (module: AppModule) => void;
   addPdfFile: (file: PdfFile) => void;
@@ -34,82 +46,108 @@ interface AppState {
   setError: (error: string | null) => void;
   setOverlay: (overlay: OverlayState | null) => void;
   setCurrentPdfPath: (path: string | null) => void;
+  addRecentFile: (file: RecentFile) => void;
+  clearRecentFiles: () => void;
+  setTheme: (theme: ThemeMode) => void;
   reset: () => void;
 }
 
-export const useAppStore = create<AppState>((set) => ({
-  activeModule: 'pdf-editor',
-  pdfFiles: [],
-  orderedPages: [],
-  selectedPages: new Set(),
-  isProcessing: false,
-  error: null,
-  overlay: null,
-  currentPdfPath: null,
-
-  setActiveModule: (module) => set({ activeModule: module }),
-
-  addPdfFile: (file) => set((state) => ({
-    pdfFiles: [...state.pdfFiles, file],
-  })),
-
-  removePdfFile: (id) => set((state) => {
-    const file = state.pdfFiles.find((f) => f.id === id);
-    if (!file) return state;
-    return {
-      pdfFiles: state.pdfFiles.filter((f) => f.id !== id),
-      orderedPages: state.orderedPages.filter((p) => p.fileId !== id),
-    };
-  }),
-
-  setOrderedPages: (pages) => set({ orderedPages: pages }),
-
-  reorderPages: (fromIndex, toIndex) => set((state) => {
-    const pages = [...state.orderedPages];
-    const [removed] = pages.splice(fromIndex, 1);
-    pages.splice(toIndex, 0, removed);
-    return { orderedPages: pages };
-  }),
-
-  togglePageSelection: (pageId) => set((state) => {
-    const selected = new Set(state.selectedPages);
-    if (selected.has(pageId)) {
-      selected.delete(pageId);
-    } else {
-      selected.add(pageId);
-    }
-    return { selectedPages: selected };
-  }),
-
-  selectAllPages: () => set((state) => ({
-    selectedPages: new Set(state.orderedPages.map((p) => p.id)),
-  })),
-
-  deselectAllPages: () => set({ selectedPages: new Set() }),
-
-  removeSelectedPages: () => set((state) => {
-    const remainingPages = state.orderedPages.filter((p) => !state.selectedPages.has(p.id));
-    return {
-      orderedPages: remainingPages,
+export const useAppStore = create<AppState>()(
+  persist(
+    (set) => ({
+      activeModule: 'pdf-editor',
+      pdfFiles: [],
+      orderedPages: [],
       selectedPages: new Set(),
-    };
-  }),
+      isProcessing: false,
+      error: null,
+      overlay: null,
+      currentPdfPath: null,
+      recentFiles: [],
+      theme: 'light',
 
-  setIsProcessing: (processing) => set({ isProcessing: processing }),
+      setActiveModule: (module) => set({ activeModule: module }),
 
-  setError: (error) => set({ error }),
+      addPdfFile: (file) => set((state) => ({
+        pdfFiles: [...state.pdfFiles, file],
+      })),
 
-  setOverlay: (overlay) => set({ overlay }),
+      removePdfFile: (id) => set((state) => {
+        const file = state.pdfFiles.find((f) => f.id === id);
+        if (!file) return state;
+        return {
+          pdfFiles: state.pdfFiles.filter((f) => f.id !== id),
+          orderedPages: state.orderedPages.filter((p) => p.fileId !== id),
+        };
+      }),
 
-  setCurrentPdfPath: (path) => set({ currentPdfPath: path }),
+      setOrderedPages: (pages) => set({ orderedPages: pages }),
 
-  reset: () => set({
-    pdfFiles: [],
-    orderedPages: [],
-    selectedPages: new Set(),
-    isProcessing: false,
-    error: null,
-    overlay: null,
-    currentPdfPath: null,
-  }),
-}));
+      reorderPages: (fromIndex, toIndex) => set((state) => {
+        const pages = [...state.orderedPages];
+        const [removed] = pages.splice(fromIndex, 1);
+        pages.splice(toIndex, 0, removed);
+        return { orderedPages: pages };
+      }),
+
+      togglePageSelection: (pageId) => set((state) => {
+        const selected = new Set(state.selectedPages);
+        if (selected.has(pageId)) {
+          selected.delete(pageId);
+        } else {
+          selected.add(pageId);
+        }
+        return { selectedPages: selected };
+      }),
+
+      selectAllPages: () => set((state) => ({
+        selectedPages: new Set(state.orderedPages.map((p) => p.id)),
+      })),
+
+      deselectAllPages: () => set({ selectedPages: new Set() }),
+
+      removeSelectedPages: () => set((state) => {
+        const remainingPages = state.orderedPages.filter((p) => !state.selectedPages.has(p.id));
+        return {
+          orderedPages: remainingPages,
+          selectedPages: new Set(),
+        };
+      }),
+
+      setIsProcessing: (processing) => set({ isProcessing: processing }),
+
+      setError: (error) => set({ error }),
+
+      setOverlay: (overlay) => set({ overlay }),
+
+      setCurrentPdfPath: (path) => set({ currentPdfPath: path }),
+
+      addRecentFile: (file) => set((state) => {
+        const existing = state.recentFiles.filter((f) => f.id !== file.id);
+        const updated = [file, ...existing].slice(0, 20);
+        return { recentFiles: updated };
+      }),
+
+      clearRecentFiles: () => set({ recentFiles: [] }),
+
+      setTheme: (theme) => set({ theme }),
+
+      reset: () => set({
+        pdfFiles: [],
+        orderedPages: [],
+        selectedPages: new Set(),
+        isProcessing: false,
+        error: null,
+        overlay: null,
+        currentPdfPath: null,
+      }),
+    }),
+    {
+      name: 'pdf-toolkit-storage',
+      partialize: (state) => ({
+        recentFiles: state.recentFiles,
+        theme: state.theme,
+      }),
+    }
+  )
+);

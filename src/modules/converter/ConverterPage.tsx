@@ -539,8 +539,22 @@ y += 15;
   }
 };
 
+let pdfjsWorkerConfigured = false;
+
+const initPdfJsWorker = async () => {
+  if (pdfjsWorkerConfigured) return;
+  
+  const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+    'pdfjs-dist/legacy/build/pdf.worker.min.mjs',
+    import.meta.url
+  ).toString();
+  pdfjsWorkerConfigured = true;
+};
+
 const convertPdfToImages = async (fileData: Uint8Array): Promise<string[]> => {
   try {
+    await initPdfJsWorker();
     const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
     const pdfDoc = await pdfjsLib.getDocument({ data: fileData }).promise;
     const numPages = pdfDoc.numPages;

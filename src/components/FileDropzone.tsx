@@ -9,9 +9,18 @@ export function FileDropzone() {
     
     if (files.length === 0) return;
     
-    const { orderedPages, pdfFiles } = useAppStore.getState();
+    const { orderedPages, pdfFiles, addRecentFile } = useAppStore.getState();
     const newOrderedPages = [...orderedPages, ...files.flatMap((f) => f.pages)];
     const newPdfFiles = [...pdfFiles, ...files];
+    
+    files.forEach((file) => {
+      addRecentFile({
+        id: file.id,
+        name: file.name,
+        timestamp: Date.now(),
+        size: file.data.length,
+      });
+    });
     
     console.log('[FileDropzone] Updating store: total files:', newPdfFiles.length, 'total pages:', newOrderedPages.length);
     

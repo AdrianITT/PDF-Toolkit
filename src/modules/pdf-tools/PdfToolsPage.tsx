@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Card, Row, Col, Button, Upload, Input, message, Slider, Radio, Space, Tag, Alert } from 'antd';
+import { PDFDocument } from 'pdf-lib-plus-encrypt';
 import { 
   CompressOutlined, 
   ScissorOutlined, 
@@ -50,7 +51,7 @@ export function PdfToolsPage() {
     try {
       const { invoke } = await import('@tauri-apps/api/core');
       const result = await invoke<number[]>('compress_pdf', {
-        file_data: Array.from(pdfFile.data),
+        fileData: Array.from(pdfFile.data),
         quality: compressQuality / 100
       });
 
@@ -111,17 +112,31 @@ export function PdfToolsPage() {
 
     setLoading(true);
     try {
-      const { invoke } = await import('@tauri-apps/api/core');
-      const result = await invoke<number[]>('protect_pdf', {
-        request: {
-          file_data: Array.from(pdfFile.data),
-          userPassword: userPassword || null,
-          ownerPassword: ownerPassword || null
-        }
+      const pdfDoc = await PDFDocument.load(pdfFile.data);
+      
+      const userPw = userPassword || '';
+      const ownerPw = ownerPassword || userPw;
+      
+      if (!userPw && !ownerPw) {
+        throw new Error('Se requiere al menos una contraseña');
+      }
+      
+      pdfDoc.encrypt({
+        userPassword: userPw,
+        ownerPassword: ownerPw,
+        permissions: {
+          printing: 'highResolution',
+          modifying: false,
+          copying: false,
+          annotating: false,
+          fillingForms: false,
+          contentAccessibility: false,
+          documentAssembly: false,
+        },
       });
 
-      const pdfBytes = new Uint8Array(result);
-      downloadPdf(pdfBytes, pdfFile.name.replace('.pdf', '_protected.pdf'));
+      const encryptedPdf = await pdfDoc.save();
+      downloadPdf(new Uint8Array(encryptedPdf), pdfFile.name.replace('.pdf', '_protected.pdf'));
       message.success('PDF protegido exitosamente');
     } catch (err) {
       console.error('Protect error:', err);
@@ -163,16 +178,24 @@ export function PdfToolsPage() {
     }
   };
 
-  const downloadPdf = (data: Uint8Array, filename: string) => {
-    const copy = new Uint8Array(data.length);
-    copy.set(data);
-    const blob = new Blob([copy], { type: 'application/pdf' });
+  const downloadPdf = async (data: Uint8Array, filename: string, delay = 0) => {
+    if (delay > 0) {
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+    const blob = new Blob([new Uint8Array(data)], { type: 'application/pdf' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
     link.download = filename;
     link.click();
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  const downloadSplitPdfs = async (results: number[][]) => {
+    for (let i = 0; i < results.length; i++) {
+      const pdfBytes = new Uint8Array(results[i]);
+      await downloadPdf(pdfBytes, `split_part${i + 1}.pdf`, i * 200);
+    }
   };
 
   const toolOptions = [
@@ -425,10 +448,7 @@ export function PdfToolsPage() {
                         page_ranges: ranges
                       }
                     });
-                    results.forEach((pdfData: number[], index: number) => {
-                      const pdfBytes = new Uint8Array(pdfData);
-                      downloadPdf(pdfBytes, pdfFile.name.replace('.pdf', `_part${index + 1}.pdf`));
-                    });
+                    await downloadSplitPdfs(results);
                     message.success(`PDF dividido en ${results.length} partes`);
                   } catch (err) {
                     console.error('Split error:', err);

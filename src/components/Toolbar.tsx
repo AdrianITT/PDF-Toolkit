@@ -1,6 +1,6 @@
-import { Button, Space, message, Modal, Slider, Radio, Tooltip, Input } from 'antd';
-import { DeleteOutlined, DownloadOutlined, SelectOutlined, CompressOutlined, RotateRightOutlined, PicCenterOutlined } from '@ant-design/icons';
-import { useAppStore } from '../stores/appStore';
+import { Button, Space, message, Modal, Slider, Radio, Tooltip, Input, Dropdown, Empty } from 'antd';
+import { DeleteOutlined, DownloadOutlined, SelectOutlined, CompressOutlined, RotateRightOutlined, PicCenterOutlined, SunOutlined, MoonOutlined, HistoryOutlined } from '@ant-design/icons';
+import { useAppStore, type RecentFile } from '../stores/appStore';
 import { mergePdfs, downloadPdf } from '../services/pdf.service';
 import type { PageRef, PdfFile } from '../types';
 import { useState } from 'react';
@@ -15,6 +15,10 @@ export function Toolbar() {
     removeSelectedPages,
     setIsProcessing,
     setError,
+    recentFiles,
+    theme,
+    setTheme,
+    clearRecentFiles,
   } = useAppStore();
 
   const [compressModalOpen, setCompressModalOpen] = useState(false);
@@ -192,6 +196,68 @@ export function Toolbar() {
     }
   };
 
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  };
+
+  const formatTimestamp = (ts: number): string => {
+    const date = new Date(ts);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    if (days === 0) return 'Hoy';
+    if (days === 1) return 'Ayer';
+    if (days < 7) return `Hace ${days} días`;
+    return date.toLocaleDateString();
+  };
+
+  const handleThemeToggle = () => {
+    setTheme(theme === 'light' ? 'dark' : 'light');
+  };
+
+  const recentFilesMenu = {
+    items: [
+      {
+        key: 'header',
+        label: (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0' }}>
+            <span style={{ fontWeight: 600 }}>Archivos Recientes</span>
+            {recentFiles.length > 0 && (
+              <Button type="link" size="small" onClick={(e) => { e.stopPropagation(); clearRecentFiles(); }}>
+                Limpiar
+              </Button>
+            )}
+          </div>
+        ),
+        disabled: true,
+      },
+      ...(recentFiles.length === 0 ? [{
+        key: 'empty',
+        label: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Sin archivos recientes" />,
+      }] : recentFiles.map((file: RecentFile) => ({
+        key: file.id,
+        label: (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: 250 }}>
+            <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <div>{file.name}</div>
+              <div style={{ fontSize: 11, color: '#888' }}>
+                {formatFileSize(file.size)} • {formatTimestamp(file.timestamp)}
+              </div>
+            </div>
+          </div>
+        ),
+        onClick: () => {
+          message.info('Abre el archivo desde el módulo correspondiente');
+        },
+      }))),
+    ],
+  };
+
+  const themeIcon = theme === 'dark' ? <SunOutlined /> : <MoonOutlined />;
+  const themeLabel = theme === 'dark' ? 'Modo claro' : 'Modo oscuro';
+
   return (
     <>
       <div
@@ -200,8 +266,8 @@ export function Toolbar() {
           justifyContent: 'space-between',
           alignItems: 'center',
           padding: '12px 16px',
-          background: '#fafafa',
-          borderBottom: '1px solid #f0f0f0',
+          background: theme === 'dark' ? '#1f1f1f' : '#fafafa',
+          borderBottom: `1px solid ${theme === 'dark' ? '#303030' : '#f0f0f0'}`,
         }}
       >
         <Space>
@@ -247,16 +313,31 @@ export function Toolbar() {
               disabled={!hasPages}
             />
           </Tooltip>
+
+          <Dropdown menu={recentFilesMenu} trigger={['click']}>
+            <Tooltip title="Archivos recientes">
+              <Button icon={<HistoryOutlined />} />
+            </Tooltip>
+          </Dropdown>
         </Space>
 
-        <Button
-          type="primary"
-          icon={<DownloadOutlined />}
-          onClick={handleMerge}
-          disabled={!hasPages}
-        >
-          Unir y descargar ({orderedPages.length} pág)
-        </Button>
+        <Space>
+          <Tooltip title={themeLabel}>
+            <Button
+              icon={themeIcon}
+              onClick={handleThemeToggle}
+            />
+          </Tooltip>
+
+          <Button
+            type="primary"
+            icon={<DownloadOutlined />}
+            onClick={handleMerge}
+            disabled={!hasPages}
+          >
+            Unir y descargar ({orderedPages.length} pág)
+          </Button>
+        </Space>
       </div>
 
       <Modal title="Comprimir PDF" open={compressModalOpen} onOk={handleCompress} onCancel={() => setCompressModalOpen(false)}>
