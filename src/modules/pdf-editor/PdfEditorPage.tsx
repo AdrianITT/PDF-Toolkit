@@ -542,7 +542,7 @@ function PdfCanvasViewer() {
           justifyContent: 'center',
           alignItems: 'center',
           overflow: 'auto',
-          background: '#f5f5f5',
+          background: 'var(--ant-color-bg-layout)',
           padding: 16,
           borderRadius: 4,
           minHeight: 400,
@@ -633,8 +633,8 @@ export function PdfEditorPage() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          background: '#fff',
-          borderBottom: '1px solid #f0f0f0',
+          background: 'var(--ant-color-bg-container)',
+          borderBottom: '1px solid var(--ant-color-border)',
           padding: '0 24px',
         }}
       >
@@ -643,14 +643,14 @@ export function PdfEditorPage() {
         </Title>
         <Space>
           {currentPdfPath && (
-            <span style={{ color: '#666', fontSize: 14 }}>
+            <span style={{ color: 'var(--ant-color-text-secondary)', fontSize: 14 }}>
               {currentPdfPath.split('/').pop()}
             </span>
           )}
         </Space>
       </Header>
 
-      <Content style={{ padding: 24, background: '#f5f5f5' }}>
+      <Content style={{ padding: 24, background: 'var(--ant-color-bg-layout)' }}>
         {error && (
           <Alert
             message={error}

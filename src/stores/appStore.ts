@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import type { PdfFile, PdfPage, AppModule } from '../types';
 
 export interface OverlayState {
@@ -52,102 +51,119 @@ interface AppState {
   reset: () => void;
 }
 
-export const useAppStore = create<AppState>()(
-  persist(
-    (set) => ({
-      activeModule: 'pdf-editor',
-      pdfFiles: [],
-      orderedPages: [],
-      selectedPages: new Set(),
-      isProcessing: false,
-      error: null,
-      overlay: null,
-      currentPdfPath: null,
-      recentFiles: [],
-      theme: 'light',
+function loadFromStorage<T>(key: string, defaultValue: T): T {
+  try {
+    const stored = localStorage.getItem(key);
+    return stored ? JSON.parse(stored) : defaultValue;
+  } catch {
+    return defaultValue;
+  }
+}
 
-      setActiveModule: (module) => set({ activeModule: module }),
+function saveToStorage(key: string, value: unknown): void {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {}
+}
 
-      addPdfFile: (file) => set((state) => ({
-        pdfFiles: [...state.pdfFiles, file],
-      })),
+const storedTheme = loadFromStorage<ThemeMode>('pdf-toolkit-theme', 'light');
+const storedRecent = loadFromStorage<RecentFile[]>('pdf-toolkit-recent', []);
 
-      removePdfFile: (id) => set((state) => {
-        const file = state.pdfFiles.find((f) => f.id === id);
-        if (!file) return state;
-        return {
-          pdfFiles: state.pdfFiles.filter((f) => f.id !== id),
-          orderedPages: state.orderedPages.filter((p) => p.fileId !== id),
-        };
-      }),
+const store = create<AppState>((set) => ({
+  activeModule: 'pdf-editor',
+  pdfFiles: [],
+  orderedPages: [],
+  selectedPages: new Set(),
+  isProcessing: false,
+  error: null,
+  overlay: null,
+  currentPdfPath: null,
+  recentFiles: storedRecent,
+  theme: storedTheme,
 
-      setOrderedPages: (pages) => set({ orderedPages: pages }),
+  setActiveModule: (module) => set({ activeModule: module }),
 
-      reorderPages: (fromIndex, toIndex) => set((state) => {
-        const pages = [...state.orderedPages];
-        const [removed] = pages.splice(fromIndex, 1);
-        pages.splice(toIndex, 0, removed);
-        return { orderedPages: pages };
-      }),
+  addPdfFile: (file) => set((state) => ({
+    pdfFiles: [...state.pdfFiles, file],
+  })),
 
-      togglePageSelection: (pageId) => set((state) => {
-        const selected = new Set(state.selectedPages);
-        if (selected.has(pageId)) {
-          selected.delete(pageId);
-        } else {
-          selected.add(pageId);
-        }
-        return { selectedPages: selected };
-      }),
+  removePdfFile: (id) => set((state) => {
+    const file = state.pdfFiles.find((f) => f.id === id);
+    if (!file) return state;
+    return {
+      pdfFiles: state.pdfFiles.filter((f) => f.id !== id),
+      orderedPages: state.orderedPages.filter((p) => p.fileId !== id),
+    };
+  }),
 
-      selectAllPages: () => set((state) => ({
-        selectedPages: new Set(state.orderedPages.map((p) => p.id)),
-      })),
+  setOrderedPages: (pages) => set({ orderedPages: pages }),
 
-      deselectAllPages: () => set({ selectedPages: new Set() }),
+  reorderPages: (fromIndex, toIndex) => set((state) => {
+    const pages = [...state.orderedPages];
+    const [removed] = pages.splice(fromIndex, 1);
+    pages.splice(toIndex, 0, removed);
+    return { orderedPages: pages };
+  }),
 
-      removeSelectedPages: () => set((state) => {
-        const remainingPages = state.orderedPages.filter((p) => !state.selectedPages.has(p.id));
-        return {
-          orderedPages: remainingPages,
-          selectedPages: new Set(),
-        };
-      }),
-
-      setIsProcessing: (processing) => set({ isProcessing: processing }),
-
-      setError: (error) => set({ error }),
-
-      setOverlay: (overlay) => set({ overlay }),
-
-      setCurrentPdfPath: (path) => set({ currentPdfPath: path }),
-
-      addRecentFile: (file) => set((state) => {
-        const existing = state.recentFiles.filter((f) => f.id !== file.id);
-        const updated = [file, ...existing].slice(0, 20);
-        return { recentFiles: updated };
-      }),
-
-      clearRecentFiles: () => set({ recentFiles: [] }),
-
-      setTheme: (theme) => set({ theme }),
-
-      reset: () => set({
-        pdfFiles: [],
-        orderedPages: [],
-        selectedPages: new Set(),
-        isProcessing: false,
-        error: null,
-        overlay: null,
-        currentPdfPath: null,
-      }),
-    }),
-    {
-      name: 'pdf-toolkit-storage',
-      partialize: (state) => ({
-        recentFiles: state.recentFiles,
-        theme: state.theme,
-      }),
+  togglePageSelection: (pageId) => set((state) => {
+    const selected = new Set(state.selectedPages);
+    if (selected.has(pageId)) {
+      selected.delete(pageId);
+    } else {
+      selected.add(pageId);
     }
-  )
-);
+    return { selectedPages: selected };
+  }),
+
+  selectAllPages: () => set((state) => ({
+    selectedPages: new Set(state.orderedPages.map((p) => p.id)),
+  })),
+
+  deselectAllPages: () => set({ selectedPages: new Set() }),
+
+  removeSelectedPages: () => set((state) => {
+    const remainingPages = state.orderedPages.filter((p) => !state.selectedPages.has(p.id));
+    return {
+      orderedPages: remainingPages,
+      selectedPages: new Set(),
+    };
+  }),
+
+  setIsProcessing: (processing) => set({ isProcessing: processing }),
+
+  setError: (error) => set({ error }),
+
+  setOverlay: (overlay) => set({ overlay }),
+
+  setCurrentPdfPath: (path) => set({ currentPdfPath: path }),
+
+  addRecentFile: (file) => set((state) => {
+    const existing = state.recentFiles.filter((f) => f.id !== file.id);
+    const updated = [file, ...existing].slice(0, 20);
+    saveToStorage('pdf-toolkit-recent', updated);
+    return { recentFiles: updated };
+  }),
+
+  clearRecentFiles: () => {
+    saveToStorage('pdf-toolkit-recent', []);
+    set({ recentFiles: [] });
+  },
+
+  setTheme: (newTheme) => {
+    console.log('[Store] setTheme CALLED with:', newTheme);
+    saveToStorage('pdf-toolkit-theme', newTheme);
+    set({ theme: newTheme });
+  },
+
+  reset: () => set({
+    pdfFiles: [],
+    orderedPages: [],
+    selectedPages: new Set(),
+    isProcessing: false,
+    error: null,
+    overlay: null,
+    currentPdfPath: null,
+  }),
+}));
+
+export const useAppStore = store;

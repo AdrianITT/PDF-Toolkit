@@ -36,6 +36,7 @@ export interface SignatureTemplate {
   defaultLayout: 'horizontal' | 'vertical' | 'centered';
   defaultLogoPosition: 'left' | 'right' | 'top' | 'center';
   formSections: ('basic' | 'contact' | 'social' | 'style' | 'structure')[];
+  category?: string;
 }
 
 const linkStyle = (color: string) => ({
@@ -176,53 +177,58 @@ export function renderFlexibleSignature(sig: EmailSignature, width: number): Rea
 export const signatureTemplates: SignatureTemplate[] = [
   {
     id: 'minimal-clean',
-    name: 'Minimalista Limpio',
+    name: 'Minimalista',
     description: 'Diseño limpio con espacio amplio y tipografía elegante',
     preview: '⬜═══',
     config: { bgColor: '#ffffff', textColor: '#2d2d2d', linkColor: '#2563eb', accentColor: '#2563eb', borderRadius: 0 },
     defaultLayout: 'horizontal',
     defaultLogoPosition: 'left',
     formSections: ['basic', 'contact', 'social', 'style', 'structure'],
+    category: 'minimal',
   },
   {
     id: 'minimal-dark',
-    name: 'Minimalista Oscuro',
+    name: 'Oscuro',
     description: 'Fondo oscuro elegante con texto claro',
     preview: '⬛═══',
     config: { bgColor: '#1a1a1a', textColor: '#e5e5e5', linkColor: '#60a5fa', accentColor: '#60a5fa', borderRadius: 0 },
     defaultLayout: 'vertical',
     defaultLogoPosition: 'top',
     formSections: ['basic', 'contact', 'social', 'style', 'structure'],
+    category: 'premium',
   },
   {
     id: 'hierarchical-top',
-    name: 'Jerárquico Superior',
+    name: 'Corporativo',
     description: 'Logo centrado arriba con jerarquía visual clara',
     preview: '◻👔◻',
     config: { bgColor: '#f8fafc', textColor: '#1e293b', linkColor: '#0f766e', accentColor: '#0f766e', borderRadius: 8 },
     defaultLayout: 'centered',
     defaultLogoPosition: 'center',
     formSections: ['basic', 'contact', 'social', 'style', 'structure'],
+    category: 'corporate',
   },
   {
     id: 'hierarchical-sidebar',
-    name: 'Jerárquico Lateral',
+    name: 'Lateral',
     description: 'Barra lateral accent con información organizada',
     preview: '▌│││',
     config: { bgColor: '#ffffff', textColor: '#334155', linkColor: '#7c3aed', accentColor: '#7c3aed', borderRadius: 0 },
     defaultLayout: 'horizontal',
     defaultLogoPosition: 'left',
     formSections: ['basic', 'contact', 'social', 'style', 'structure'],
+    category: 'corporate',
   },
   {
     id: 'visual-centered',
-    name: 'Visual Centrado',
+    name: 'Centrado',
     description: 'Logo grande centrado con diseño simétrico',
     preview: '◻👔◻',
     config: { bgColor: '#fef3c7', textColor: '#92400e', linkColor: '#d97706', accentColor: '#d97706', borderRadius: 16 },
     defaultLayout: 'centered',
     defaultLogoPosition: 'top',
     formSections: ['basic', 'contact', 'social', 'style', 'structure'],
+    category: 'creative',
   },
   {
     id: 'visual-beside',

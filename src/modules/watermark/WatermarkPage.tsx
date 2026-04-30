@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Card, Input, Row, Col, Button, Upload, message, Space, Slider, Radio } from 'antd';
+import { Card, Input, Row, Col, Button, Upload, message, Slider, Radio, Space, Tooltip, InputNumber } from 'antd';
 import { DownloadOutlined, UploadOutlined } from '@ant-design/icons';
 import { PDFDocument, rgb, degrees } from 'pdf-lib';
 
@@ -7,14 +7,14 @@ interface WatermarkConfig {
   type: 'text' | 'image';
   text: string;
   fontSize: number;
-  colorR: number;
-  colorG: number;
-  colorB: number;
+  color: string;
   opacity: number;
-  position: string;
+  position: 'center' | 'topLeft' | 'topCenter' | 'topRight' | 'bottomLeft' | 'bottomCenter' | 'bottomRight' | 'middleLeft' | 'middleRight';
   rotation: number;
   imageScale: number;
   firstPageOnly: boolean;
+  targetPageStart: number;
+  targetPageEnd: number;
 }
 
 function downloadBlob(data: Uint8Array, filename: string) {
@@ -31,44 +31,110 @@ function downloadBlob(data: Uint8Array, filename: string) {
   URL.revokeObjectURL(url);
 }
 
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? {
+    r: parseInt(result[1], 16),
+    g: parseInt(result[2], 16),
+    b: parseInt(result[3], 16)
+  } : { r: 180, g: 180, b: 180 };
+}
+
 export function WatermarkPage() {
   const [config, setConfig] = useState<WatermarkConfig>({
     type: 'text',
     text: 'WATERMARK',
     fontSize: 48,
-    colorR: 180,
-    colorG: 180,
-    colorB: 180,
+    color: '#b4b4b4',
     opacity: 30,
     position: 'center',
     rotation: -45,
     imageScale: 50,
     firstPageOnly: false,
+    targetPageStart: 2,
+    targetPageEnd: 2,
   });
   
   const [pdfFile, setPdfFile] = useState<{ name: string; data: Uint8Array } | null>(null);
+  const [pdfThumbnail, setPdfThumbnail] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<{ data: Uint8Array; width: number; height: number } | null>(null);
   const [loading, setLoading] = useState(false);
   const [isUploadingPdf, setIsUploadingPdf] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   const positions = [
-    { value: 'center', label: 'Centro' },
-    { value: 'topLeft', label: 'Arriba Izquierda' },
-    { value: 'topRight', label: 'Arriba Derecha' },
-    { value: 'bottomLeft', label: 'Abajo Izquierda' },
-    { value: 'bottomRight', label: 'Abajo Derecha' },
+    { value: 'topLeft', label: '↖', title: 'Arriba Izquierda' },
+    { value: 'topCenter', label: '↑', title: 'Arriba Centro' },
+    { value: 'topRight', label: '↗', title: 'Arriba Derecha' },
+    { value: 'middleLeft', label: '←', title: 'Centro Izquierda' },
+    { value: 'center', label: '●', title: 'Centro' },
+    { value: 'middleRight', label: '→', title: 'Centro Derecha' },
+    { value: 'bottomLeft', label: '↙', title: 'Abajo Izquierda' },
+    { value: 'bottomCenter', label: '↓', title: 'Abajo Centro' },
+    { value: 'bottomRight', label: '↘', title: 'Abajo Derecha' },
   ];
 
   const handleFileUpload = async (file: File) => {
     setIsUploadingPdf(true);
     try {
       const buffer = await file.arrayBuffer();
-      setPdfFile({ name: file.name, data: new Uint8Array(buffer) });
+      const pdfData = new Uint8Array(buffer);
+      
+      if (pdfData.length < 5 || pdfData[0] !== 0x25 || pdfData[1] !== 0x50 || pdfData[2] !== 0x44 || pdfData[3] !== 0x46) {
+        message.error('El archivo no es un PDF válido');
+        return false;
+      }
+      
+      const pdfDataCopy = new Uint8Array(pdfData.length);
+      pdfDataCopy.set(pdfData);
+      
+      setPdfFile({ name: file.name, data: pdfDataCopy });
+      
+      const thumbnailDataUrl = await generatePdfThumbnail(pdfData);
+      setPdfThumbnail(thumbnailDataUrl);
+    } catch (err) {
+      console.error('[Watermark] Upload error:', err);
+      message.error('Error al cargar el PDF');
+      return false;
     } finally {
       setIsUploadingPdf(false);
     }
     return false;
+  };
+
+  const generatePdfThumbnail = async (pdfData: Uint8Array): Promise<string> => {
+    try {
+      const pdfDataCopy = new Uint8Array(pdfData.length);
+      pdfDataCopy.set(pdfData);
+      
+      const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
+      pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+        'pdfjs-dist/legacy/build/pdf.worker.min.mjs',
+        import.meta.url
+      ).toString();
+      
+      const pdfDoc = await pdfjsLib.getDocument({ data: pdfDataCopy }).promise;
+      const page = await pdfDoc.getPage(1);
+      
+      const viewport = page.getViewport({ scale: 0.5 });
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d');
+      
+      if (!context) return '';
+      
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      
+      await page.render({
+        canvasContext: context,
+        viewport: viewport,
+      }).promise;
+      
+      return canvas.toDataURL('image/png');
+    } catch (e) {
+      console.error('Error generating PDF thumbnail:', e);
+      return '';
+    }
   };
 
   const handleImageUpload = async (file: File) => {
@@ -104,13 +170,24 @@ export function WatermarkPage() {
 
   const applyTextWatermark = async (pdfDoc: PDFDocument) => {
     const pages = pdfDoc.getPages();
-    const pagesToProcess = config.firstPageOnly ? [pages[0]] : pages;
+    let pagesToProcess: any[];
     
-    const color = rgb(config.colorR / 255, config.colorG / 255, config.colorB / 255);
+    if (config.firstPageOnly) {
+      pagesToProcess = [pages[0]];
+    } else if (config.targetPageStart === config.targetPageEnd && config.targetPageStart === 1) {
+      pagesToProcess = pages;
+    } else {
+      const startIdx = Math.max(0, config.targetPageStart - 1);
+      const endIdx = Math.min(pages.length, config.targetPageEnd);
+      pagesToProcess = pages.slice(startIdx, endIdx);
+    }
+    
+    const rgbColor = hexToRgb(config.color);
+    const color = rgb(rgbColor.r / 255, rgbColor.g / 255, rgbColor.b / 255);
     
     for (const page of pagesToProcess) {
       const { width, height } = page.getSize();
-      const pos = getPositionCoords(config.position, width, height);
+      const pos = getPositionCoords(config.position, width, height, config.fontSize, config.text.length);
       
       page.drawText(config.text, {
         x: pos.x,
@@ -127,7 +204,17 @@ export function WatermarkPage() {
     if (!imageFile) return;
     
     const pages = pdfDoc.getPages();
-    const pagesToProcess = config.firstPageOnly ? [pages[0]] : pages;
+    let pagesToProcess: any[];
+    
+    if (config.firstPageOnly) {
+      pagesToProcess = [pages[0]];
+    } else if (config.targetPageStart === config.targetPageEnd && config.targetPageStart === 1) {
+      pagesToProcess = pages;
+    } else {
+      const startIdx = Math.max(0, config.targetPageStart - 1);
+      const endIdx = Math.min(pages.length, config.targetPageEnd);
+      pagesToProcess = pages.slice(startIdx, endIdx);
+    }
     
     const isPng = imageFile.data[0] === 0x89 && imageFile.data[1] === 0x50;
     let image;
@@ -155,26 +242,59 @@ export function WatermarkPage() {
     }
   };
 
-  const getPositionCoords = (pos: string, pageWidth: number, pageHeight: number) => {
-    const margin = 50;
-    switch (pos) {
-      case 'topLeft': return { x: margin, y: pageHeight - 100 };
-      case 'topRight': return { x: pageWidth - config.fontSize * 4, y: pageHeight - 100 };
-      case 'bottomLeft': return { x: margin, y: margin };
-      case 'bottomRight': return { x: pageWidth - config.fontSize * 4, y: margin };
-      default: return { x: pageWidth / 2 - config.fontSize * 2, y: pageHeight / 2 };
-    }
+  const getPositionCoords = (pos: string, pageWidth: number, pageHeight: number, fontSize: number, textLength: number) => {
+    const marginX = pageWidth * 0.05;
+    const marginY = pageHeight * 0.08;
+    const textWidth = textLength * fontSize * 0.6;
+    const textHeight = fontSize;
+    
+    const positions: any = {
+      topLeft: { x: marginX, y: pageHeight - textHeight - marginY },
+      topCenter: { x: (pageWidth - textWidth) / 2, y: pageHeight - textHeight - marginY },
+      topRight: { x: pageWidth - textWidth - marginX, y: pageHeight - textHeight - marginY },
+      middleLeft: { x: marginX, y: (pageHeight - textHeight) / 2 },
+      center: { x: (pageWidth - textWidth) / 2, y: (pageHeight - textHeight) / 2 },
+      middleRight: { x: pageWidth - textWidth - marginX, y: (pageHeight - textHeight) / 2 },
+      bottomLeft: { x: marginX, y: marginY },
+      bottomCenter: { x: (pageWidth - textWidth) / 2, y: marginY },
+      bottomRight: { x: pageWidth - textWidth - marginX, y: marginY },
+    };
+    
+    return positions[pos] || positions.center;
+  };
+
+  const getPreviewPosition = (pos: string): { x: string; y: string; transform: string } => {
+    const positions: Record<string, { x: string; y: string; transform: string }> = {
+      topLeft: { x: '5%', y: '8%', transform: '' },
+      topCenter: { x: '50%', y: '8%', transform: 'translateX(-50%)' },
+      topRight: { x: '95%', y: '8%', transform: 'translateX(-100%)' },
+      middleLeft: { x: '5%', y: '50%', transform: 'translateY(-50%)' },
+      center: { x: '50%', y: '50%', transform: 'translate(-50%, -50%)' },
+      middleRight: { x: '95%', y: '50%', transform: 'translate(-100%, -50%)' },
+      bottomLeft: { x: '5%', y: '85%', transform: 'translateY(-100%)' },
+      bottomCenter: { x: '50%', y: '85%', transform: 'translate(-50%, -100%)' },
+      bottomRight: { x: '95%', y: '85%', transform: 'translate(-100%, -100%)' },
+    };
+    return positions[pos] || positions.center;
   };
 
   const getImagePositionCoords = (pos: string, pageWidth: number, pageHeight: number, imgWidth: number, imgHeight: number) => {
-    const margin = 50;
-    switch (pos) {
-      case 'topLeft': return { x: margin, y: pageHeight - imgHeight - margin };
-      case 'topRight': return { x: pageWidth - imgWidth - margin, y: pageHeight - imgHeight - margin };
-      case 'bottomLeft': return { x: margin, y: margin };
-      case 'bottomRight': return { x: pageWidth - imgWidth - margin, y: margin };
-      default: return { x: (pageWidth - imgWidth) / 2, y: (pageHeight - imgHeight) / 2 };
-    }
+    const marginX = pageWidth * 0.05;
+    const marginY = pageHeight * 0.08;
+    
+    const positions: any = {
+      topLeft: { x: marginX, y: pageHeight - imgHeight - marginY },
+      topCenter: { x: (pageWidth - imgWidth) / 2, y: pageHeight - imgHeight - marginY },
+      topRight: { x: pageWidth - imgWidth - marginX, y: pageHeight - imgHeight - marginY },
+      middleLeft: { x: marginX, y: (pageHeight - imgHeight) / 2 },
+      center: { x: (pageWidth - imgWidth) / 2, y: (pageHeight - imgHeight) / 2 },
+      middleRight: { x: pageWidth - imgWidth - marginX, y: (pageHeight - imgHeight) / 2 },
+      bottomLeft: { x: marginX, y: marginY },
+      bottomCenter: { x: (pageWidth - imgWidth) / 2, y: marginY },
+      bottomRight: { x: pageWidth - imgWidth - marginX, y: marginY },
+    };
+    
+    return positions[pos] || positions.center;
   };
 
   const handleApply = async () => {
@@ -185,7 +305,16 @@ export function WatermarkPage() {
     
     setLoading(true);
     try {
-      const pdfDoc = await PDFDocument.load(pdfFile.data);
+      const pdfDataCopy = new Uint8Array(pdfFile.data.length);
+      pdfDataCopy.set(pdfFile.data);
+      
+      if (pdfDataCopy.length < 5 || pdfDataCopy[0] !== 0x25 || pdfDataCopy[1] !== 0x50 || pdfDataCopy[2] !== 0x44 || pdfDataCopy[3] !== 0x46) {
+        console.error('[Watermark] Invalid PDF header');
+        message.error('El archivo no es un PDF válido');
+        return;
+      }
+      
+      const pdfDoc = await PDFDocument.load(pdfDataCopy);
       
       if (config.type === 'text') {
         await applyTextWatermark(pdfDoc);
@@ -211,7 +340,8 @@ export function WatermarkPage() {
   };
 
   return (
-    <Card title="Agregar Marca de Agua">
+    <>
+      <Card title="Agregar Marca de Agua" style={{ maxWidth: 800, background: 'var(--ant-color-bg-container)' }}>
       <Row gutter={[16, 16]}>
         <Col span={24}>
           <Radio.Group 
@@ -277,19 +407,193 @@ export function WatermarkPage() {
         />
       </div>
 
-      <Space style={{ marginTop: 16 }}>
+      <div style={{ marginTop: 16 }}>
+        <span>Color:</span>
+        <div style={{ display: 'flex', gap: 8, marginLeft: 16, alignItems: 'center' }}>
+          <input
+            type="color"
+            value={config.color}
+            onChange={(e) => setConfig({ ...config, color: e.target.value })}
+            style={{ width: 40, height: 32, padding: 0, border: '1px solid #d9d9d9', cursor: 'pointer' }}
+          />
+          <Input
+            value={config.color}
+            onChange={(e) => setConfig({ ...config, color: e.target.value })}
+            style={{ width: 100 }}
+            placeholder="#hex"
+          />
+          <span style={{ fontSize: 12, color: '#888' }}>o...</span>
+        </div>
+      </div>
+
+      <div style={{ marginTop: 16 }}>
+        <span>Colores rápidos:</span>
+        <Space style={{ marginLeft: 8 }}>
+          {['#cccccc', '#999999', '#e0e0e0', '#d4d4d4', '#bfbfbf', '#a6a6a6'].map((c) => (
+            <Tooltip key={c} title={c}>
+              <Button
+                onClick={() => setConfig({ ...config, color: c })}
+                style={{ 
+                  background: c, 
+                  border: config.color === c ? '#1890ff' : '#d9d9d9',
+                  width: 24, 
+                  height: 24, 
+                  padding: 0 
+                }}
+              />
+            </Tooltip>
+          ))}
+        </Space>
+      </div>
+
+<div style={{ marginTop: 16 }}>
         <span>Posición:</span>
-        {positions.map((pos) => (
-          <Button
-            key={pos.value}
-            type={config.position === pos.value ? 'primary' : 'default'}
-            onClick={() => setConfig({ ...config, position: pos.value })}
-            size="small"
-          >
-            {pos.label}
-          </Button>
-        ))}
-      </Space>
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(3, 1fr)', 
+          gap: 4, 
+          width: 120, 
+          marginTop: 8 
+        }}>
+          {positions.map((pos) => (
+            <Tooltip key={pos.value} title={pos.title}>
+              <Button
+                type={config.position === pos.value ? 'primary' : 'default'}
+                onClick={() => setConfig({ ...config, position: pos.value as any})}
+                style={{ padding: '4px 8px', fontSize: 12 }}
+              >
+                {pos.label}
+              </Button>
+            </Tooltip>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ marginTop: 16 }}>
+        <span>Vista previa:</span>
+        <div 
+          style={{
+            width: '100%',
+            height: 350,
+            border: '2px solid var(--ant-color-border)',
+            borderRadius: 4,
+            background: '#ffffff',
+            position: 'relative',
+            overflow: 'hidden',
+            marginTop: 8,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+        >
+          {/* PDF Thumbnail or placeholder */}
+          {pdfThumbnail ? (
+            <div style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+              <img 
+                src={pdfThumbnail} 
+                alt="PDF Preview"
+                style={{ 
+                  maxWidth: '100%', 
+                  maxHeight: '100%', 
+                  objectFit: 'contain',
+                }} 
+              />
+              {/* Watermark overlay - positioned absolutely over the PDF */}
+              <div
+                style={{
+                  position: 'absolute',
+                  fontSize: Math.max(16, config.fontSize * 1.5),
+                  color: config.color,
+                  opacity: config.opacity / 100,
+                  transform: `rotate(${config.rotation}deg) ${getPreviewPosition(config.position).transform || ''}`,
+                  whiteSpace: 'nowrap',
+                  fontWeight: 'bold',
+                  left: getPreviewPosition(config.position).x,
+                  top: getPreviewPosition(config.position).y,
+                  textShadow: '2px 2px 4px rgba(0,0,0,0.3)',
+                  pointerEvents: 'none',
+                  zIndex: 10,
+                }}
+              >
+                {config.text}
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Placeholder when no PDF */}
+              <div style={{
+                position: 'absolute',
+                inset: 0,
+                background: 'linear-gradient(135deg, #fafafa 0%, #f0f0f0 100%)',
+                opacity: 0.5,
+              }} />
+              <div style={{
+                position: 'absolute',
+                top: 30,
+                left: 20,
+                right: 20,
+                height: 8,
+                background: '#e0e0e0',
+                borderRadius: 2,
+                opacity: 0.4,
+              }} />
+              <div style={{
+                position: 'absolute',
+                top: 50,
+                left: 20,
+                right: 40,
+                height: 8,
+                background: '#e0e0e0',
+                borderRadius: 2,
+                opacity: 0.4,
+              }} />
+              <div style={{
+                position: 'absolute',
+                top: 70,
+                left: 20,
+                right: 60,
+                height: 8,
+                background: '#e0e0e0',
+                borderRadius: 2,
+                opacity: 0.4,
+              }} />
+              <div style={{
+                position: 'absolute',
+                top: 90,
+                left: 20,
+                right: 30,
+                height: 8,
+                background: '#e0e0e0',
+                borderRadius: 2,
+                opacity: 0.4,
+              }} />
+              {/* Watermark - same as PDF preview */}
+              <div
+                style={{
+                  position: 'absolute',
+                  fontSize: Math.max(16, config.fontSize * 1.5),
+                  color: config.color,
+                  opacity: config.opacity / 100,
+                  transform: `rotate(${config.rotation}deg) ${getPreviewPosition(config.position).transform || ''}`,
+                  whiteSpace: 'nowrap',
+                  fontWeight: 'bold',
+                  left: getPreviewPosition(config.position).x,
+                  top: getPreviewPosition(config.position).y,
+                  textShadow: '2px 2px 4px rgba(0,0,0,0.3)',
+                  pointerEvents: 'none',
+                  zIndex: 10,
+                }}
+              >
+                {config.text}
+              </div>
+            </>
+          )}
+        </div>
+        <div style={{ fontSize: 11, color: 'var(--ant-color-text-secondary)', marginTop: 4 }}>
+          {pdfFile ? `Vista: ${pdfFile.name} (1ra página)` : 'Sube un PDF para ver previsualización real'} • Tamaño: {config.fontSize}pt • Opacidad: {config.opacity}%
+        </div>
+      </div>
 
       <div style={{ marginTop: 16 }}>
         <span>Rotación: {config.rotation}°</span>
@@ -302,58 +606,48 @@ export function WatermarkPage() {
       </div>
 
       <div style={{ marginTop: 16 }}>
-        <span>Color RGB ({config.colorR}, {config.colorG}, {config.colorB})</span>
-        <Row gutter={8}>
-          <Col span={8}>
-            <span>R: {config.colorR}</span>
-            <Slider
-              min={0}
-              max={255}
-              value={config.colorR}
-              onChange={(v) => setConfig({ ...config, colorR: v })}
-            />
-          </Col>
-          <Col span={8}>
-            <span>G: {config.colorG}</span>
-            <Slider
-              min={0}
-              max={255}
-              value={config.colorG}
-              onChange={(v) => setConfig({ ...config, colorG: v })}
-            />
-          </Col>
-          <Col span={8}>
-            <span>B: {config.colorB}</span>
-            <Slider
-              min={0}
-              max={255}
-              value={config.colorB}
-              onChange={(v) => setConfig({ ...config, colorB: v })}
-            />
-          </Col>
-        </Row>
-      </div>
-
-      <div style={{ marginTop: 16 }}>
-        <span>Alcance:</span>
+        <span>Aplicar en:</span>
         <Radio.Group 
-          value={config.firstPageOnly ? 'first' : 'all'}
-          onChange={(e) => setConfig({ ...config, firstPageOnly: e.target.value === 'first' })}
+          value={config.firstPageOnly ? 'first' : (config.targetPageStart === config.targetPageEnd && config.targetPageStart > 1 ? 'custom' : 'all')}
+          onChange={(e) => {
+            if (e.target.value === 'first') {
+              setConfig({ ...config, firstPageOnly: true });
+            } else if (e.target.value === 'all') {
+              setConfig({ ...config, firstPageOnly: false, targetPageStart: 1, targetPageEnd: 999 });
+            } else {
+              setConfig({ ...config, firstPageOnly: false, targetPageStart: 2, targetPageEnd: 2 });
+            }
+          }}
           style={{ marginLeft: 16 }}
         >
           <Radio.Button value="first">Primera página</Radio.Button>
+          <Radio.Button value="custom">Página específica</Radio.Button>
           <Radio.Button value="all">Todas las páginas</Radio.Button>
         </Radio.Group>
+
+        {!config.firstPageOnly && config.targetPageStart === config.targetPageEnd && config.targetPageStart > 1 && (
+          <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
+            <span>Página:</span>
+            <InputNumber 
+              min={1} 
+              max={999} 
+              value={config.targetPageStart} 
+              onChange={(v) => setConfig({ ...config, targetPageStart: v || 1, targetPageEnd: v || 1 })}
+              style={{ width: 70 }}
+              size="small"
+            />
+          </div>
+        )}
       </div>
 
-      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+      <Row gutter={[16, 16]} style={{ marginTop: 24 }}>
         <Col span={12}>
           <Upload
             accept=".pdf"
             showUploadList={false}
             beforeUpload={handleFileUpload}
           >
-            <Button icon={<UploadOutlined />} loading={isUploadingPdf}>
+            <Button icon={<UploadOutlined />} loading={isUploadingPdf} block>
               {isUploadingPdf ? 'Cargando...' : (pdfFile ? pdfFile.name : 'Subir PDF')}
             </Button>
           </Upload>
@@ -365,49 +659,35 @@ export function WatermarkPage() {
             onClick={handleApply}
             disabled={!pdfFile}
             loading={loading}
+            block
+            size="large"
           >
             Aplicar y Descargar
           </Button>
         </Col>
       </Row>
 
-      {config.type === 'text' && (
-        <div
-          style={{
-            marginTop: 24,
-            padding: 20,
-            background: '#f5f5f5',
-            textAlign: 'center',
-            fontSize: config.fontSize,
-            color: `rgb(${config.colorR}, ${config.colorG}, ${config.colorB})`,
-            opacity: config.opacity / 100,
-            transform: `rotate(${config.rotation}deg)`,
-          }}
-        >
-          {config.text}
-        </div>
-      )}
-
-      {config.type === 'image' && imageFile && (
-        <div
-          style={{
-            marginTop: 24,
-            padding: 20,
-            background: '#f5f5f5',
-            textAlign: 'center',
-          }}
-        >
-          <img 
-            src={URL.createObjectURL(new Blob([new Uint8Array(imageFile.data)]))} 
-            style={{ 
-              width: `${config.imageScale}px`,
-              opacity: config.opacity / 100,
-              transform: `rotate(${config.rotation}deg)`,
-            }} 
-            alt="Preview"
-          />
-        </div>
-      )}
+      <div style={{ marginTop: 16, padding: 16, background: 'var(--ant-color-bg-layout)', borderRadius: 8, border: '1px solid var(--ant-color-border)' }}>
+        <Row gutter={16}>
+          <Col span={12}>
+            <span style={{ fontSize: 12, color: 'var(--ant-color-text-secondary)' }}>Tip:</span>
+            <ul style={{ fontSize: 12, color: 'var(--ant-color-text-secondary)', paddingLeft: 16, margin: 0 }}>
+              <li>Usa color claro para marcas discretas</li>
+              <li>30% opacidad es ideal para la mayoria</li>
+              <li>Rotation diagonal crea efecto profesional</li>
+            </ul>
+          </Col>
+          <Col span={12}>
+            <span style={{ fontSize: 12, color: 'var(--ant-color-text-secondary)' }}>Colores populares:</span>
+            <Space style={{ marginTop: 4 }}>
+              <Button size="small" style={{ background: '#cccccc' }} onClick={() => setConfig({ ...config, color: '#cccccc' })}>Gris claro</Button>
+              <Button size="small" style={{ background: '#999999', color: '#fff' }} onClick={() => setConfig({ ...config, color: '#999999' })}>Gris oscuro</Button>
+              <Button size="small" style={{ background: '#e0e0e0' }} onClick={() => setConfig({ ...config, color: '#e0e0e0' })}>Gris muy claro</Button>
+            </Space>
+          </Col>
+        </Row>
+      </div>
     </Card>
+    </>
   );
 }

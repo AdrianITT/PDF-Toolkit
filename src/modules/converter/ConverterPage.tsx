@@ -840,7 +840,7 @@ export function ConverterPage() {
           textAlign: 'center',
           marginBottom: 16,
           cursor: 'pointer',
-          background: isLoading ? '#f0f5ff' : '#fafafa',
+          background: isLoading ? 'var(--ant-color-bg-spotlight)' : 'var(--ant-color-bg-container)',
           opacity: isLoading ? 0.8 : 1,
           minHeight: 120,
           display: 'flex',

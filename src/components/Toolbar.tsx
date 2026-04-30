@@ -1,25 +1,25 @@
 import { Button, Space, message, Modal, Slider, Radio, Tooltip, Input, Dropdown, Empty } from 'antd';
 import { DeleteOutlined, DownloadOutlined, SelectOutlined, CompressOutlined, RotateRightOutlined, PicCenterOutlined, SunOutlined, MoonOutlined, HistoryOutlined } from '@ant-design/icons';
-import { useAppStore, type RecentFile } from '../stores/appStore';
+import { useAppStore } from '../stores/appStore';
 import { mergePdfs, downloadPdf } from '../services/pdf.service';
 import type { PageRef, PdfFile } from '../types';
 import { useState } from 'react';
 
 export function Toolbar() {
-  const {
-    pdfFiles,
-    orderedPages,
-    selectedPages,
-    selectAllPages,
-    deselectAllPages,
-    removeSelectedPages,
-    setIsProcessing,
-    setError,
-    recentFiles,
-    theme,
-    setTheme,
-    clearRecentFiles,
-  } = useAppStore();
+  const store = useAppStore();
+  
+  const pdfFiles = store.pdfFiles;
+  const orderedPages = store.orderedPages;
+  const selectedPages = store.selectedPages;
+  const selectAllPages = store.selectAllPages;
+  const deselectAllPages = store.deselectAllPages;
+  const removeSelectedPages = store.removeSelectedPages;
+  const setIsProcessing = store.setIsProcessing;
+  const setError = store.setError;
+  const recentFiles = store.recentFiles;
+  const theme = store.theme;
+  const setTheme = store.setTheme;
+  const clearRecentFiles = store.clearRecentFiles;
 
   const [compressModalOpen, setCompressModalOpen] = useState(false);
   const [rotateModalOpen, setRotateModalOpen] = useState(false);
@@ -66,8 +66,9 @@ export function Toolbar() {
       downloadPdf(pdfBytes, 'compressed.pdf');
       message.success('PDF comprimido');
     } catch (err) {
-      console.error('Compress error:', err);
-      message.error('Error al comprimir');
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      console.error('Compress error:', errorMsg);
+      message.error(`Error al comprimir: ${errorMsg}`);
     } finally {
       setIsProcessing(false);
       setCompressModalOpen(false);
@@ -105,8 +106,9 @@ export function Toolbar() {
       downloadPdf(pdfBytes, 'rotated.pdf');
       message.success('PDF rotado');
     } catch (err) {
-      console.error('Rotate error:', err);
-      message.error('Error al rotar');
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      console.error('Rotate error:', errorMsg);
+      message.error(`Error al rotar: ${errorMsg}`);
     } finally {
       setIsProcessing(false);
       setRotateModalOpen(false);
@@ -141,8 +143,9 @@ export function Toolbar() {
       });
       message.success(`PDF dividido en ${results.length} partes`);
     } catch (err) {
-      console.error('Split error:', err);
-      message.error('Error al dividir');
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      console.error('Split error:', errorMsg);
+      message.error(`Error al dividir: ${errorMsg}`);
     } finally {
       setIsProcessing(false);
       setSplitModalOpen(false);
@@ -156,33 +159,26 @@ export function Toolbar() {
     setError(null);
 
     try {
-      console.log('[Toolbar] PDF files:', pdfFiles.length);
-      console.log('[Toolbar] Ordered pages:', orderedPages.length);
-      
       const files = pdfFiles.map((f: PdfFile) => f.data);
-      console.log('[Toolbar] File data lengths:', files.map(f => f.byteLength));
-      
       const pageOrder: PageRef[] = orderedPages.map((page) => {
         const fileIndex = pdfFiles.findIndex((f: PdfFile) => f.name === page.fileId);
         if (fileIndex === -1) {
           throw new Error(`Archivo no encontrado: ${page.fileId}`);
         }
-        console.log('[Toolbar] Page:', page.fileId, 'pageNum:', page.pageNumber, 'fileIndex:', fileIndex);
         return {
           file_index: fileIndex,
           page_number: page.pageNumber,
         };
       });
 
-      console.log('[Toolbar] Calling mergePdfs with', pageOrder.length, 'pages');
       const merged = await mergePdfs({ files, page_order: pageOrder });
-      console.log('[Toolbar] Merge result size:', merged.byteLength);
       downloadPdf(merged, 'merged.pdf');
       message.success('PDF combinado exitosamente');
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Error al combinar PDFs';
-      setError(errorMsg);
-      message.error(errorMsg);
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      console.error('Merge error:', err);
+      setError(`Error al combinar: ${errorMsg}`);
+      message.error(`Error al combinar: ${errorMsg}`);
     } finally {
       setIsProcessing(false);
     }
@@ -214,7 +210,21 @@ export function Toolbar() {
   };
 
   const handleThemeToggle = () => {
-    setTheme(theme === 'light' ? 'dark' : 'light');
+    console.log('========== TOGGLE THEME DEBUG ==========');
+    console.log('[Toolbar] Current theme:', theme);
+    console.log('[Toolbar] setTheme function type:', typeof setTheme);
+    console.log('[Toolbar] setTheme function:', setTheme);
+    console.log('[Toolbar] store:', store);
+    console.log('=====================================');
+    
+    try {
+      const newTheme = theme === 'light' ? 'dark' : 'light';
+      setTheme(newTheme);
+      console.log('[Toolbar] Theme changed to:', newTheme);
+    } catch (err) {
+      console.error('[Toolbar] ERROR:', err);
+      message.error('Error al cambiar tema: ' + err);
+    }
   };
 
   const recentFilesMenu = {
@@ -236,7 +246,7 @@ export function Toolbar() {
       ...(recentFiles.length === 0 ? [{
         key: 'empty',
         label: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Sin archivos recientes" />,
-      }] : recentFiles.map((file: RecentFile) => ({
+      }] : recentFiles.map((file: any) => ({
         key: file.id,
         label: (
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: 250 }}>
@@ -346,7 +356,7 @@ export function Toolbar() {
       </Modal>
 
       <Modal title="Rotar Páginas" open={rotateModalOpen} onOk={handleRotate} onCancel={() => setRotateModalOpen(false)}>
-        <p>Ángulo de rotación:</p>
+        <p>Ángulo de rotaci��n:</p>
         <Radio.Group value={rotationAngle} onChange={(e) => setRotationAngle(e.target.value)}>
           <Radio.Button value={90}>90°</Radio.Button>
           <Radio.Button value={180}>180°</Radio.Button>
