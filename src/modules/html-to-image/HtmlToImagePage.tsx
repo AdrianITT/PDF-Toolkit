@@ -1,14 +1,15 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Card, Input, Row, Col, Button, ColorPicker, message, Space, Slider, List, Modal, Empty, Tabs, Radio } from 'antd';
+import { Card, Input, Row, Col, Button, ColorPicker, message, Space, Slider, List, Modal, Empty, Tabs, Radio, Upload } from 'antd';
 import { 
   DownloadOutlined, 
   ReloadOutlined,
   EditOutlined,
   CodeOutlined,
-  EyeOutlined
+  EyeOutlined,
+  UserOutlined
 } from '@ant-design/icons';
 import { toPng } from 'html-to-image';
-import { signatureTemplates, defaultSignature, type EmailSignature } from './signatureTemplates';
+import { signatureTemplates, defaultSignature, type EmailSignature, renderFlexibleSignature } from './signatureTemplates';
 
 export function HtmlToImagePage() {
   const previewRef = useRef<HTMLDivElement>(null);
@@ -167,7 +168,82 @@ ${sig.website ? `<a href="https://${sig.website}" style="color: ${sig.linkColor}
                   </div>
                   {signatureTemplates.length > 6 && <Button type="link" size="small" onClick={() => setShowAllTemplates(!showAllTemplates)}>{showAllTemplates ? '− Ver menos' : '+ Ver todas'}</Button>}
                 </div>
+
+                <Card size="small" style={{ marginBottom: 16, background: '#fafafa' }}>
+                  <div style={{ fontWeight: 600, color: '#333', fontSize: 13 }}>① Información Personal</div>
+                  <Row gutter={[8, 8]} style={{ marginTop: 12 }}>
+                    <Col span={24}><Input placeholder="Nombre *" value={sig.name} onChange={(e) => updateField('name', e.target.value)} /></Col>
+                    <Col span={24}><Input placeholder="Cargo" value={sig.title} onChange={(e) => updateField('title', e.target.value)} /></Col>
+                    <Col span={24}><Input placeholder="Empresa" value={sig.company} onChange={(e) => updateField('company', e.target.value)} /></Col>
+                  </Row>
+                </Card>
+
+                <Card size="small" style={{ marginBottom: 16, background: '#fafafa' }}>
+                  <div style={{ fontWeight: 600, color: '#333', fontSize: 13 }}>② Contacto</div>
+                  <Row gutter={[8, 8]} style={{ marginTop: 12 }}>
+                    <Col span={24}><Input placeholder="Email" value={sig.email} onChange={(e) => updateField('email', e.target.value)} /></Col>
+                    <Col span={24}><Input placeholder="Teléfono" value={sig.phone} onChange={(e) => updateField('phone', e.target.value)} /></Col>
+                    <Col span={24}><Input placeholder="Web" value={sig.website} onChange={(e) => updateField('website', e.target.value)} /></Col>
+                  </Row>
+                </Card>
+
+                <Card size="small" style={{ marginBottom: 16, background: '#fafafa' }}>
+                  <div style={{ fontWeight: 600, color: '#333', fontSize: 13 }}>③ Redes Sociales</div>
+                  <Row gutter={[8, 8]} style={{ marginTop: 12 }}>
+                    <Col span={24}><Input placeholder="LinkedIn" value={sig.linkedin} onChange={(e) => updateField('linkedin', e.target.value)} /></Col>
+                    <Col span={24}><Input placeholder="Twitter" value={sig.twitter} onChange={(e) => updateField('twitter', e.target.value)} /></Col>
+                  </Row>
+                </Card>
+
+                <Card size="small" style={{ marginBottom: 16, background: '#fafafa' }}>
+                  <div style={{ fontWeight: 600, color: '#333', fontSize: 13 }}>④ Apariencia</div>
+                  <Row gutter={[8, 8]} style={{ marginTop: 12 }}>
+                    <Col span={12}>
+                      <div style={{ fontSize: 12, marginBottom: 4, color: '#666' }}>Foto de Perfil</div>
+                      <Upload accept="image/*" showUploadList={false} beforeUpload={(file) => {
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                          updateField('photoUrl', reader.result as string);
+                          message.success('Foto cargada');
+                        };
+                        reader.readAsDataURL(file);
+                        return false;
+                      }}>
+                        <Button icon={<UserOutlined />} size="small">{sig.photoUrl ? 'Cambiar' : 'Subir'}</Button>
+                      </Upload>
+                      {sig.photoUrl && <Button type="link" size="small" danger onClick={() => updateField('photoUrl', '')}>X</Button>}
+                    </Col>
+                    <Col span={12}>
+                      <div style={{ fontSize: 12, marginBottom: 4, color: '#666' }}>Logo</div>
+                      <Upload accept="image/*" showUploadList={false} beforeUpload={(file) => {
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                          updateField('logoUrl', reader.result as string);
+                          message.success('Logo cargado');
+                        };
+                        reader.readAsDataURL(file);
+                        return false;
+                      }}>
+                        <Button size="small">{sig.logoUrl ? 'Cambiar' : 'Subir'}</Button>
+                      </Upload>
+                      {sig.logoUrl && <Button type="link" size="small" danger onClick={() => updateField('logoUrl', '')}>X</Button>}
+                    </Col>
+                  </Row>
+                  <Row gutter={[8, 8]} style={{ marginTop: 12 }}>
+                    <Col span={12}><div style={{ fontSize: 12, color: '#666' }}>Fondo</div><ColorPicker value={sig.bgColor} onChange={(c) => updateField('bgColor', c.toHexString())} /></Col>
+                    <Col span={12}><div style={{ fontSize: 12, color: '#666' }}>Texto</div><ColorPicker value={sig.textColor} onChange={(c) => updateField('textColor', c.toHexString())} /></Col>
+                  </Row>
+                </Card>
+
+                <Card size="small" style={{ background: '#fafafa' }}>
+                  <div style={{ fontWeight: 600, color: '#333', fontSize: 13 }}>⑤ Estilos</div>
+                  <Row gutter={[8, 8]} style={{ marginTop: 12 }}>
+                    <Col span={12}><div style={{ fontSize: 12 }}>Borde</div><Slider min={0} max={24} value={sig.borderRadius} onChange={(v) => updateField('borderRadius', v)} /></Col>
+                    <Col span={12}><div style={{ fontSize: 12 }}>Acento</div><ColorPicker value={sig.accentColor} onChange={(c) => updateField('accentColor', c.toHexString())} /></Col>
+                  </Row>
+                </Card>
               </Col>
+
               <Col xs={24} lg={14}>
                 <Card 
                   title={
@@ -190,11 +266,7 @@ ${sig.website ? `<a href="https://${sig.website}" style="color: ${sig.linkColor}
                     {htmlContent ? (
                       <div dangerouslySetInnerHTML={{ __html: htmlContent }} />
                     ) : (
-                      <div style={{ padding: 16, background: sig.bgColor, borderRadius: sig.borderRadius }}>
-                        <div style={{ fontSize: sig.fontSize + 6, fontWeight: 'bold', color: sig.textColor }}>{sig.name || 'Tu Nombre'}</div>
-                        {sig.title && <div style={{ fontSize: sig.fontSize + 2, color: sig.accentColor }}>{sig.title}</div>}
-                        {sig.company && <div style={{ fontSize: sig.fontSize, color: sig.textColor, fontWeight: 500 }}>{sig.company}</div>}
-                      </div>
+                      renderFlexibleSignature(sig, 400, selectedTemplate)
                     )}
                   </div>
                 </Card>
@@ -206,78 +278,25 @@ ${sig.website ? `<a href="https://${sig.website}" style="color: ${sig.linkColor}
           key: 'editor',
           label: '✏️ Editar HTML',
           children: (
-            <Row gutter={[16, 16]}>
-              <Col xs={24} lg={10}>
-                <div style={{ marginBottom: 16 }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-                    {displayTemplates.map(t => (
-                      <div key={t.id} onClick={() => applyTemplate(t.id)} style={{ padding: 10, borderRadius: 8, border: selectedTemplate === t.id ? `2px solid ${sig.accentColor}` : '1px solid #e0e0e0', background: selectedTemplate === t.id ? sig.accentColor + '10' : '#fafafa', cursor: 'pointer', textAlign: 'center' }}>
-                        <div style={{ fontSize: 16, marginBottom: 2 }}>{t.preview}</div>
-                        <div style={{ fontSize: 10 }}>{t.name}</div>
-                      </div>
-                    ))}
+            <Card size="small" title={<Space><CodeOutlined /> Editor HTML</Space>} extra={<Button size="small" onClick={() => setHtmlContent(generateHtmlFromSignature())}>Reset</Button>}>
+              <Row gutter={[16, 16]}>
+                <Col xs={24} lg={12}>
+                  <div style={{ marginBottom: 8, fontWeight: 500, fontSize: 12 }}>HTML</div>
+                  <Input.TextArea value={htmlContent} onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setHtmlContent(e.target.value)} autoSize={{ minRows: 12, maxRows: 20 }} style={{ fontFamily: 'monospace', fontSize: 12, background: '#1e1e1e', color: '#d4d4d4', border: '1px solid #333' }} placeholder="<!-- HTML -->" />
+                  <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
+                    <Radio.Group value={exportFormat} onChange={(e) => setExportFormat(e.target.value)}>
+                      <Radio.Button value="png">PNG</Radio.Button>
+                      <Radio.Button value="jpg">JPG</Radio.Button>
+                    </Radio.Group>
+                    <Button type="primary" icon={<DownloadOutlined />} onClick={exportAsImage} loading={isConverting}>Exportar</Button>
                   </div>
-                </div>
-                <Card size="small" style={{ marginBottom: 16, background: '#fafafa' }}>
-                  <div style={{ fontWeight: 600, color: '#333', fontSize: 13 }}>① Información Personal</div>
-                  <Row gutter={[8, 8]} style={{ marginTop: 12 }}>
-                    <Col span={24}><Input placeholder="Nombre *" value={sig.name} onChange={(e) => updateField('name', e.target.value)} /></Col>
-                    <Col span={24}><Input placeholder="Cargo" value={sig.title} onChange={(e) => updateField('title', e.target.value)} /></Col>
-                    <Col span={24}><Input placeholder="Empresa" value={sig.company} onChange={(e) => updateField('company', e.target.value)} /></Col>
-                  </Row>
-                </Card>
-                <Card size="small" style={{ marginBottom: 16, background: '#fafafa' }}>
-                  <div style={{ fontWeight: 600, color: '#333', fontSize: 13 }}>② Contacto</div>
-                  <Row gutter={[8, 8]} style={{ marginTop: 12 }}>
-                    <Col span={24}><Input placeholder="Email" value={sig.email} onChange={(e) => updateField('email', e.target.value)} /></Col>
-                    <Col span={24}><Input placeholder="Teléfono" value={sig.phone} onChange={(e) => updateField('phone', e.target.value)} /></Col>
-                    <Col span={24}><Input placeholder="Web" value={sig.website} onChange={(e) => updateField('website', e.target.value)} /></Col>
-                  </Row>
-                </Card>
-                <Card size="small" style={{ marginBottom: 16, background: '#fafafa' }}>
-                  <div style={{ fontWeight: 600, color: '#333', fontSize: 13 }}>③ Redes Sociales</div>
-                  <Row gutter={[8, 8]} style={{ marginTop: 12 }}>
-                    <Col span={24}><Input placeholder="LinkedIn" value={sig.linkedin} onChange={(e) => updateField('linkedin', e.target.value)} /></Col>
-                    <Col span={24}><Input placeholder="Twitter" value={sig.twitter} onChange={(e) => updateField('twitter', e.target.value)} /></Col>
-                  </Row>
-                </Card>
-                <Card size="small" style={{ marginBottom: 16, background: '#fafafa' }}>
-                  <div style={{ fontWeight: 600, color: '#333', fontSize: 13 }}>④ Apariencia</div>
-                  <Row gutter={[8, 8]} style={{ marginTop: 12 }}>
-                    <Col span={12}><div style={{ fontSize: 12 }}>Fondo</div><ColorPicker value={sig.bgColor} onChange={(c) => updateField('bgColor', c.toHexString())} /></Col>
-                    <Col span={12}><div style={{ fontSize: 12 }}>Texto</div><ColorPicker value={sig.textColor} onChange={(c) => updateField('textColor', c.toHexString())} /></Col>
-                  </Row>
-                </Card>
-                <Card size="small" style={{ background: '#fafafa' }}>
-                  <div style={{ fontWeight: 600, color: '#333', fontSize: 13 }}>⑤ Estilos</div>
-                  <Row gutter={[8, 8]} style={{ marginTop: 12 }}>
-                    <Col span={12}><div style={{ fontSize: 12 }}>Borde</div><Slider min={0} max={24} value={sig.borderRadius} onChange={(v) => updateField('borderRadius', v)} /></Col>
-                    <Col span={12}><div style={{ fontSize: 12 }}>Acento</div><ColorPicker value={sig.accentColor} onChange={(c) => updateField('accentColor', c.toHexString())} /></Col>
-                  </Row>
-                </Card>
-              </Col>
-              <Col xs={24} lg={14}>
-                <Card size="small" title={<Space><CodeOutlined /> Editor HTML</Space>} extra={<Button size="small" onClick={() => setHtmlContent(generateHtmlFromSignature())}>Reset</Button>}>
-                  <Row gutter={[16, 16]}>
-                    <Col xs={24} lg={12}>
-                      <div style={{ marginBottom: 8, fontWeight: 500, fontSize: 12 }}>HTML</div>
-                      <Input.TextArea value={htmlContent} onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setHtmlContent(e.target.value)} autoSize={{ minRows: 12, maxRows: 20 }} style={{ fontFamily: 'monospace', fontSize: 12, background: '#1e1e1e', color: '#d4d4d4', border: '1px solid #333' }} placeholder="<!-- HTML -->" />
-                      <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
-                        <Radio.Group value={exportFormat} onChange={(e) => setExportFormat(e.target.value)}>
-                          <Radio.Button value="png">PNG</Radio.Button>
-                          <Radio.Button value="jpg">JPG</Radio.Button>
-                        </Radio.Group>
-                        <Button type="primary" icon={<DownloadOutlined />} onClick={exportAsImage} loading={isConverting}>Exportar</Button>
-                      </div>
-                    </Col>
-                    <Col xs={24} lg={12}>
-                      <div style={{ marginBottom: 8, fontWeight: 500, fontSize: 12 }}>Vista Previa</div>
-                      <div style={{ border: '1px solid #d1d5db', borderRadius: 4, padding: 16, background: '#fff', overflow: 'auto', maxHeight: 350, minHeight: 250 }} dangerouslySetInnerHTML={{ __html: htmlContent }} />
-                    </Col>
-                  </Row>
-                </Card>
-              </Col>
-            </Row>
+                </Col>
+                <Col xs={24} lg={12}>
+                  <div style={{ marginBottom: 8, fontWeight: 500, fontSize: 12 }}>Vista Previa</div>
+                  <div ref={previewRef} style={{ border: '1px solid #d1d5db', borderRadius: 4, padding: 16, background: '#fff', overflow: 'auto', maxHeight: 350, minHeight: 250 }} dangerouslySetInnerHTML={{ __html: htmlContent }} />
+                </Col>
+              </Row>
+            </Card>
           )
         },
       ]} />

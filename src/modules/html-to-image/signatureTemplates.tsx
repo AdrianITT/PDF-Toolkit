@@ -10,6 +10,7 @@ export interface EmailSignature {
   linkedin: string;
   twitter: string;
   logoUrl: string;
+  photoUrl: string;
   bgColor: string;
   textColor: string;
   linkColor: string;
@@ -64,6 +65,10 @@ const LogoImage = ({ logoUrl, size = 80 }: { logoUrl: string; size?: number }) =
   logoUrl && <img src={logoUrl} alt="Logo" style={{ width: size, height: size, objectFit: 'contain', borderRadius: 8 }} />
 );
 
+const PhotoImage = ({ photoUrl, size = 80, borderColor = '#2563eb' }: { photoUrl: string; size?: number; borderColor?: string }) => (
+  photoUrl && <img src={photoUrl} alt="Foto" style={{ width: size, height: size, objectFit: 'cover', borderRadius: '50%', border: `3px solid ${borderColor}` }} />
+);
+
 const NameBlock = ({ sig }: { sig: EmailSignature }) => (
   <div>
     <div style={{ fontSize: sig.fontSize + 6, fontWeight: 'bold', color: sig.textColor }}>
@@ -113,9 +118,7 @@ const SocialBlock = ({ sig }: { sig: EmailSignature }) => (
   )
 );
 
-export function renderFlexibleSignature(sig: EmailSignature, width: number): React.ReactNode {
-  const order = sig.elementOrder.length > 0 ? sig.elementOrder : ['name', 'contact', 'social'];
-  
+export function renderFlexibleSignature(sig: EmailSignature, width: number, selectedTemplate?: string): React.ReactNode {
   const containerStyle: React.CSSProperties = {
     width,
     maxWidth: '100%',
@@ -126,6 +129,148 @@ export function renderFlexibleSignature(sig: EmailSignature, width: number): Rea
     borderRadius: sig.borderRadius,
   };
 
+  const templateId = selectedTemplate || '';
+
+  if (templateId === 'minimal-clean') {
+    return (
+      <div style={{ ...containerStyle, display: 'flex', gap: 24, alignItems: 'center' }}>
+        {sig.photoUrl ? (
+          <PhotoImage photoUrl={sig.photoUrl} size={90} borderColor={sig.accentColor} />
+        ) : (
+          <div style={{ width: 90, height: 90, borderRadius: '50%', background: sig.accentColor + '20', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, color: sig.accentColor }}>
+            {(sig.name || 'J').charAt(0).toUpperCase()}
+          </div>
+        )}
+        <div style={{ flex: 1, borderLeft: `3px solid ${sig.accentColor}`, paddingLeft: 20 }}>
+          <div style={{ fontSize: sig.fontSize + 10, fontWeight: 'bold', color: sig.textColor, lineHeight: 1.2 }}>
+            {sig.name || 'Tu Nombre'}
+          </div>
+          {sig.title && (
+            <div style={{ fontSize: sig.fontSize + 2, color: sig.accentColor, marginTop: 4, fontWeight: 500 }}>
+              {sig.title}
+            </div>
+          )}
+          {sig.company && (
+            <div style={{ fontSize: sig.fontSize, color: sig.textColor, fontWeight: 500, marginTop: 2 }}>
+              {sig.company}
+            </div>
+          )}
+          <div style={{ marginTop: 12, fontSize: sig.fontSize - 1, color: sig.textColor, opacity: 0.85 }}>
+            {sig.email && <div>✉️ {sig.email}</div>}
+            {sig.phone && <div style={{ marginTop: 2 }}>📞 {sig.phone}</div>}
+            {sig.website && <div style={{ marginTop: 2 }}>🌐 {sig.website}</div>}
+          </div>
+          {(sig.linkedin || sig.twitter || sig.instagram) && (
+            <div style={{ marginTop: 8, display: 'flex', gap: 12, fontSize: sig.fontSize - 1 }}>
+              {sig.linkedin && <span style={{ color: sig.linkColor }}>LinkedIn</span>}
+              {sig.twitter && <span style={{ color: sig.linkColor }}>Twitter</span>}
+              {sig.instagram && <span style={{ color: sig.linkColor }}>Instagram</span>}
+            </div>
+          )}
+        </div>
+        {sig.logoUrl && (
+          <LogoImage logoUrl={sig.logoUrl} size={70} />
+        )}
+      </div>
+    );
+  }
+
+  if (templateId === 'minimal-dark') {
+    return (
+      <div style={{ ...containerStyle, display: 'flex', gap: 24, alignItems: 'center', background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)' }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: sig.fontSize + 10, fontWeight: 'bold', color: sig.textColor, lineHeight: 1.2 }}>
+            {sig.name || 'Tu Nombre'}
+          </div>
+          {sig.title && (
+            <div style={{ fontSize: sig.fontSize + 2, color: sig.accentColor, marginTop: 4, fontWeight: 500 }}>
+              {sig.title}
+            </div>
+          )}
+          {sig.company && (
+            <div style={{ fontSize: sig.fontSize, color: sig.textColor, fontWeight: 500, marginTop: 2, opacity: 0.8 }}>
+              {sig.company}
+            </div>
+          )}
+          <div style={{ marginTop: 12, fontSize: sig.fontSize - 1, color: sig.textColor, opacity: 0.9 }}>
+            {sig.email && <div>✉️ {sig.email}</div>}
+            {sig.phone && <div style={{ marginTop: 2 }}>📞 {sig.phone}</div>}
+            {sig.website && <div style={{ marginTop: 2 }}>🌐 {sig.website}</div>}
+          </div>
+          {(sig.linkedin || sig.twitter) && (
+            <div style={{ marginTop: 8, display: 'flex', gap: 12, fontSize: sig.fontSize - 1 }}>
+              {sig.linkedin && <span style={{ color: sig.linkColor }}>LinkedIn</span>}
+              {sig.twitter && <span style={{ color: sig.linkColor }}>Twitter</span>}
+            </div>
+          )}
+        </div>
+        {sig.photoUrl ? (
+          <PhotoImage photoUrl={sig.photoUrl} size={90} borderColor={sig.accentColor} />
+        ) : (
+          <div style={{ width: 90, height: 90, borderRadius: '50%', background: sig.accentColor + '40', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, color: sig.textColor, border: `3px solid ${sig.accentColor}` }}>
+            {(sig.name || 'J').charAt(0).toUpperCase()}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (templateId === 'hierarchical-top') {
+    return (
+      <div style={{ ...containerStyle, textAlign: 'center', background: 'linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%)' }}>
+        {sig.logoUrl && (
+          <div style={{ marginBottom: 12 }}>
+            <LogoImage logoUrl={sig.logoUrl} size={80} />
+          </div>
+        )}
+        {sig.photoUrl ? (
+          <div style={{ marginBottom: 16 }}>
+            <PhotoImage photoUrl={sig.photoUrl} size={100} borderColor={sig.accentColor} />
+          </div>
+        ) : (
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ width: 100, height: 100, borderRadius: '50%', background: sig.accentColor + '30', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40, color: sig.accentColor, margin: '0 auto', border: `4px solid ${sig.accentColor}` }}>
+              {(sig.name || 'J').charAt(0).toUpperCase()}
+            </div>
+          </div>
+        )}
+        <div style={{ padding: '0 20px' }}>
+          <div style={{ fontSize: sig.fontSize + 12, fontWeight: 'bold', color: sig.textColor, lineHeight: 1.3 }}>
+            {sig.name || 'Tu Nombre'}
+          </div>
+          {sig.title && (
+            <div style={{ fontSize: sig.fontSize + 4, color: sig.accentColor, marginTop: 6, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>
+              {sig.title}
+            </div>
+          )}
+          {sig.company && (
+            <div style={{ fontSize: sig.fontSize, color: sig.textColor, fontWeight: 500, marginTop: 8, opacity: 0.8 }}>
+              {sig.company}
+            </div>
+          )}
+        </div>
+        <div style={{ marginTop: 16, paddingTop: 16, borderTop: `2px solid ${sig.accentColor}`, display: 'inline-block', padding: '16px 32px' }}>
+          <div style={{ fontSize: sig.fontSize, color: sig.textColor }}>
+            {sig.email && <span style={{ color: sig.linkColor }}>{sig.email}</span>}
+            {sig.email && sig.phone && <span style={{ color: sig.textColor, margin: '0 8px' }}>|</span>}
+            {sig.phone && <span style={{ color: sig.linkColor }}>{sig.phone}</span>}
+          </div>
+          {sig.website && (
+            <div style={{ fontSize: sig.fontSize, color: sig.linkColor, marginTop: 4 }}>{sig.website}</div>
+          )}
+        </div>
+        {(sig.linkedin || sig.twitter) && (
+          <div style={{ marginTop: 12, display: 'flex', justifyContent: 'center', gap: 16, fontSize: sig.fontSize - 1 }}>
+            {sig.linkedin && <span style={{ color: sig.linkColor }}>LinkedIn</span>}
+            {sig.twitter && <span style={{ color: sig.linkColor }}>Twitter</span>}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  const order = sig.elementOrder.length > 0 ? sig.elementOrder : ['name', 'contact', 'social'];
+  
   const flexDirection = sig.layout === 'horizontal' ? 'row' : 'column';
   const justifyContent = sig.layout === 'centered' ? 'center' : (sig.logoPosition === 'right' ? 'flex-end' : 'flex-start');
   const textAlign = sig.layout === 'centered' || sig.logoPosition === 'center' ? 'center' as const : 'left' as const;
@@ -178,9 +323,9 @@ export const signatureTemplates: SignatureTemplate[] = [
   {
     id: 'minimal-clean',
     name: 'Minimalista',
-    description: 'Diseño limpio con espacio amplio y tipografía elegante',
-    preview: '⬜═══',
-    config: { bgColor: '#ffffff', textColor: '#2d2d2d', linkColor: '#2563eb', accentColor: '#2563eb', borderRadius: 0 },
+    description: 'Diseño limpio con foto de perfil y tipografía elegante',
+    preview: '🟢👤🔵',
+    config: { bgColor: '#ffffff', textColor: '#2d2d2d', linkColor: '#2563eb', accentColor: '#2563eb', borderRadius: 12 },
     defaultLayout: 'horizontal',
     defaultLogoPosition: 'left',
     formSections: ['basic', 'contact', 'social', 'style', 'structure'],
@@ -189,22 +334,22 @@ export const signatureTemplates: SignatureTemplate[] = [
   {
     id: 'minimal-dark',
     name: 'Oscuro',
-    description: 'Fondo oscuro elegante con texto claro',
-    preview: '⬛═══',
-    config: { bgColor: '#1a1a1a', textColor: '#e5e5e5', linkColor: '#60a5fa', accentColor: '#60a5fa', borderRadius: 0 },
-    defaultLayout: 'vertical',
-    defaultLogoPosition: 'top',
+    description: 'Fondo oscuro elegante con foto de perfil y texto claro',
+    preview: '⚫👤⬛',
+    config: { bgColor: '#1a1a2e', textColor: '#e5e5e5', linkColor: '#60a5fa', accentColor: '#60a5fa', borderRadius: 16 },
+    defaultLayout: 'horizontal',
+    defaultLogoPosition: 'right',
     formSections: ['basic', 'contact', 'social', 'style', 'structure'],
     category: 'premium',
   },
   {
     id: 'hierarchical-top',
     name: 'Corporativo',
-    description: 'Logo centrado arriba con jerarquía visual clara',
-    preview: '◻👔◻',
-    config: { bgColor: '#f8fafc', textColor: '#1e293b', linkColor: '#0f766e', accentColor: '#0f766e', borderRadius: 8 },
+    description: 'Logo centrado arriba con foto de perfil y jerarquía visual clara',
+    preview: '⬜👤⬜',
+    config: { bgColor: '#f8fafc', textColor: '#1e293b', linkColor: '#0f766e', accentColor: '#0f766e', borderRadius: 16 },
     defaultLayout: 'centered',
-    defaultLogoPosition: 'center',
+    defaultLogoPosition: 'top',
     formSections: ['basic', 'contact', 'social', 'style', 'structure'],
     category: 'corporate',
   },
@@ -342,6 +487,7 @@ export const defaultSignature: EmailSignature = {
   linkedin: '',
   twitter: '',
   logoUrl: '',
+  photoUrl: '',
   bgColor: '#ffffff',
   textColor: '#333333',
   linkColor: '#2563eb',

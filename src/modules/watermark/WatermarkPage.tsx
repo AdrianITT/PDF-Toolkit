@@ -174,7 +174,7 @@ export function WatermarkPage() {
     
     if (config.firstPageOnly) {
       pagesToProcess = [pages[0]];
-    } else if (config.targetPageStart === config.targetPageEnd && config.targetPageStart === 1) {
+    } else if (config.targetPageEnd >= pages.length || config.targetPageEnd >= 999) {
       pagesToProcess = pages;
     } else {
       const startIdx = Math.max(0, config.targetPageStart - 1);
@@ -208,7 +208,7 @@ export function WatermarkPage() {
     
     if (config.firstPageOnly) {
       pagesToProcess = [pages[0]];
-    } else if (config.targetPageStart === config.targetPageEnd && config.targetPageStart === 1) {
+    } else if (config.targetPageEnd >= pages.length || config.targetPageEnd >= 999) {
       pagesToProcess = pages;
     } else {
       const startIdx = Math.max(0, config.targetPageStart - 1);
