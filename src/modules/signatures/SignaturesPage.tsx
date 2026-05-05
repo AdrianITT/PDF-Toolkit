@@ -265,18 +265,22 @@ export function SignaturesPage() {
           pages: [],
         };
 
+        const newOverlay = {
+          x: 100,
+          y: 100,
+          width: 150,
+          height: 75,
+          page: 1,
+          imageData: sig.dataUrl,
+          type: 'firma' as const,
+        };
+
+        const currentOverlays = useAppStore.getState().overlays;
+        
         useAppStore.setState({
           pdfFiles: [pdfFile],
           orderedPages: [],
-          overlay: {
-            x: 100,
-            y: 100,
-            width: 150,
-            height: 75,
-            page: 1,
-            imageData: sig.dataUrl,
-            type: 'firma',
-          },
+          overlays: [...currentOverlays, newOverlay],
           currentPdfPath: '',
         });
 

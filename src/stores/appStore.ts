@@ -27,7 +27,7 @@ interface AppState {
   selectedPages: Set<string>;
   isProcessing: boolean;
   error: string | null;
-  overlay: OverlayState | null;
+  overlays: OverlayState[];
   currentPdfPath: string | null;
   recentFiles: RecentFile[];
   theme: ThemeMode;
@@ -43,7 +43,10 @@ interface AppState {
   removeSelectedPages: () => void;
   setIsProcessing: (processing: boolean) => void;
   setError: (error: string | null) => void;
-  setOverlay: (overlay: OverlayState | null) => void;
+  addOverlay: (overlay: OverlayState) => void;
+  removeOverlay: (index: number) => void;
+  updateOverlay: (index: number, updates: Partial<OverlayState>) => void;
+  clearOverlays: () => void;
   setCurrentPdfPath: (path: string | null) => void;
   addRecentFile: (file: RecentFile) => void;
   clearRecentFiles: () => void;
@@ -76,7 +79,7 @@ const store = create<AppState>((set) => ({
   selectedPages: new Set(),
   isProcessing: false,
   error: null,
-  overlay: null,
+  overlays: [],
   currentPdfPath: null,
   recentFiles: storedRecent,
   theme: storedTheme,
@@ -133,7 +136,19 @@ const store = create<AppState>((set) => ({
 
   setError: (error) => set({ error }),
 
-  setOverlay: (overlay) => set({ overlay }),
+  addOverlay: (overlay) => set((state) => ({
+    overlays: [...state.overlays, overlay],
+  })),
+
+  removeOverlay: (index) => set((state) => ({
+    overlays: state.overlays.filter((_, i) => i !== index),
+  })),
+
+  updateOverlay: (index, updates) => set((state) => ({
+    overlays: state.overlays.map((o, i) => i === index ? { ...o, ...updates } : o),
+  })),
+
+  clearOverlays: () => set({ overlays: [] }),
 
   setCurrentPdfPath: (path) => set({ currentPdfPath: path }),
 
@@ -161,7 +176,7 @@ const store = create<AppState>((set) => ({
     selectedPages: new Set(),
     isProcessing: false,
     error: null,
-    overlay: null,
+    overlays: [],
     currentPdfPath: null,
   }),
 }));

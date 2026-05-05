@@ -269,6 +269,173 @@ export function renderFlexibleSignature(sig: EmailSignature, width: number, sele
     );
   }
 
+  // Plantilla 4 - Lateral (barra lateral con color acento)
+  if (templateId === 'hierarchical-sidebar') {
+    return (
+      <div style={{ ...containerStyle, display: 'flex', gap: 0 }}>
+        <div style={{ width: 6, background: sig.accentColor, borderRadius: `${sig.borderRadius}px 0 0 ${sig.borderRadius}px` }} />
+        <div style={{ flex: 1, padding: '16px 20px' }}>
+          {sig.photoUrl ? (
+            <PhotoImage photoUrl={sig.photoUrl} size={60} borderColor={sig.accentColor} />
+          ) : (
+            <div style={{ width: 60, height: 60, borderRadius: '50%', background: sig.accentColor + '30', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, color: sig.accentColor, marginBottom: 8 }}>
+              {(sig.name || 'J').charAt(0).toUpperCase()}
+            </div>
+          )}
+          <div style={{ fontSize: sig.fontSize + 8, fontWeight: 'bold', color: sig.textColor, marginTop: 8 }}>
+            {sig.name || 'Tu Nombre'}
+          </div>
+          {sig.title && (
+            <div style={{ fontSize: sig.fontSize + 1, color: sig.accentColor, fontWeight: 500 }}>{sig.title}</div>
+          )}
+          {sig.company && (
+            <div style={{ fontSize: sig.fontSize - 1, color: sig.textColor, opacity: 0.8, marginTop: 2 }}>{sig.company}</div>
+          )}
+        </div>
+        <div style={{ flex: 1, padding: '16px 0', borderLeft: `1px solid ${sig.textColor}15` }}>
+          <div style={{ fontSize: sig.fontSize - 1, color: sig.textColor }}>
+            {sig.email && <div style={{ color: sig.linkColor }}>✉ {sig.email}</div>}
+            {sig.phone && <div style={{ marginTop: 4, color: sig.linkColor }}>📞 {sig.phone}</div>}
+            {sig.website && <div style={{ marginTop: 4, color: sig.linkColor }}>🌐 {sig.website}</div>}
+          </div>
+          {(sig.linkedin || sig.twitter) && (
+            <div style={{ marginTop: 8, display: 'flex', gap: 8, fontSize: sig.fontSize - 2 }}>
+              {sig.linkedin && <span style={{ color: sig.linkColor }}>LinkedIn</span>}
+              {sig.twitter && <span style={{ color: sig.linkColor }}>Twitter</span>}
+            </div>
+          )}
+        </div>
+        {sig.logoUrl && (
+          <div style={{ padding: '16px 20px 16px 0', display: 'flex', alignItems: 'center' }}>
+            <LogoImage logoUrl={sig.logoUrl} size={50} />
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Plantilla 5 - Centrado (diseño centrado con logo grande)
+  if (templateId === 'visual-centered') {
+    return (
+      <div style={{ ...containerStyle, textAlign: 'center', background: `linear-gradient(135deg, ${sig.bgColor} 0%, ${sig.bgColor}dd 100%)` }}>
+        {sig.logoUrl && (
+          <div style={{ marginBottom: 12 }}>
+            <LogoImage logoUrl={sig.logoUrl} size={70} />
+          </div>
+        )}
+        <div style={{ padding: '16px 24px', border: `2px solid ${sig.accentColor}`, borderRadius: sig.borderRadius, display: 'inline-block' }}>
+          {sig.photoUrl ? (
+            <PhotoImage photoUrl={sig.photoUrl} size={70} borderColor={sig.accentColor} />
+          ) : (
+            <div style={{ width: 70, height: 70, borderRadius: '50%', background: sig.accentColor + '30', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, color: sig.accentColor, margin: '0 auto', border: `3px solid ${sig.accentColor}` }}>
+              {(sig.name || 'J').charAt(0).toUpperCase()}
+            </div>
+          )}
+          <div style={{ fontSize: sig.fontSize + 8, fontWeight: 'bold', color: sig.textColor, marginTop: 8 }}>
+            {sig.name || 'Tu Nombre'}
+          </div>
+          {sig.title && (
+            <div style={{ fontSize: sig.fontSize + 2, color: sig.accentColor, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>{sig.title}</div>
+          )}
+          {sig.company && (
+            <div style={{ fontSize: sig.fontSize, color: sig.textColor, marginTop: 4 }}>{sig.company}</div>
+          )}
+        </div>
+        <div style={{ marginTop: 16, fontSize: sig.fontSize - 1, color: sig.textColor }}>
+          {sig.email && <span style={{ color: sig.linkColor }}>{sig.email}</span>}
+          {sig.email && sig.phone && <span style={{ margin: '0 8px', opacity: 0.5 }}>|</span>}
+          {sig.phone && <span style={{ color: sig.linkColor }}>{sig.phone}</span>}
+        </div>
+        {sig.website && <div style={{ fontSize: sig.fontSize - 1, color: sig.linkColor, marginTop: 4 }}>{sig.website}</div>}
+        {(sig.linkedin || sig.twitter) && (
+          <div style={{ marginTop: 12, display: 'flex', justifyContent: 'center', gap: 16, fontSize: sig.fontSize - 2 }}>
+            {sig.linkedin && <span style={{ color: sig.linkColor }}>LinkedIn</span>}
+            {sig.twitter && <span style={{ color: sig.linkColor }}>Twitter</span>}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Plantilla 6 - Visual Lateral (tarjetas internas)
+  if (templateId === 'visual-beside') {
+    return (
+      <div style={{ ...containerStyle, display: 'flex', gap: 16, background: `linear-gradient(90deg, ${sig.bgColor} 0%, ${sig.bgColor}dd 100%)` }}>
+        <div style={{ flexShrink: 0 }}>
+          {sig.photoUrl ? (
+            <PhotoImage photoUrl={sig.photoUrl} size={80} borderColor={sig.accentColor} />
+          ) : (
+            <div style={{ width: 80, height: 80, borderRadius: '50%', background: sig.accentColor + '20', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, color: sig.accentColor, border: `3px solid ${sig.accentColor}` }}>
+              {(sig.name || 'J').charAt(0).toUpperCase()}
+            </div>
+          )}
+        </div>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ background: sig.textColor + '08', padding: '8px 12px', borderRadius: 6, borderLeft: `3px solid ${sig.accentColor}` }}>
+            <div style={{ fontSize: sig.fontSize + 4, fontWeight: 'bold', color: sig.textColor }}>{sig.name || 'Tu Nombre'}</div>
+            {sig.title && <div style={{ fontSize: sig.fontSize, color: sig.accentColor }}>{sig.title}</div>}
+            {sig.company && <div style={{ fontSize: sig.fontSize - 1, color: sig.textColor, opacity: 0.7 }}>{sig.company}</div>}
+          </div>
+          <div style={{ background: sig.textColor + '05', padding: '8px 12px', borderRadius: 6 }}>
+            <div style={{ fontSize: sig.fontSize - 1, color: sig.textColor }}>
+              {sig.email && <div style={{ color: sig.linkColor }}>{sig.email}</div>}
+              {sig.phone && <div style={{ color: sig.linkColor, marginTop: 2 }}>{sig.phone}</div>}
+              {sig.website && <div style={{ color: sig.linkColor, marginTop: 2 }}>{sig.website}</div>}
+            </div>
+          </div>
+        </div>
+        {sig.logoUrl && (
+          <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+            <LogoImage logoUrl={sig.logoUrl} size={50} />
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Plantilla 7 - Sectorial Bloques (secciones diferenciadas)
+  if (templateId === 'sectoral-blocks') {
+    return (
+      <div style={{ ...containerStyle, padding: 0, overflow: 'hidden' }}>
+        <div style={{ display: 'flex' }}>
+          <div style={{ flex: 1, padding: '16px 16px 8px', background: sig.textColor + '06' }}>
+            {sig.photoUrl ? (
+              <PhotoImage photoUrl={sig.photoUrl} size={50} borderColor={sig.accentColor} />
+            ) : (
+              <div style={{ width: 50, height: 50, borderRadius: '50%', background: sig.accentColor + '30', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, color: sig.accentColor }}>
+                {(sig.name || 'J').charAt(0).toUpperCase()}
+              </div>
+            )}
+            <div style={{ fontSize: sig.fontSize + 2, fontWeight: 'bold', color: sig.textColor, marginTop: 6 }}>{sig.name || 'Tu Nombre'}</div>
+            {sig.title && <div style={{ fontSize: sig.fontSize, color: sig.accentColor }}>{sig.title}</div>}
+          </div>
+          <div style={{ width: 4, background: sig.accentColor }} />
+          <div style={{ flex: 1, padding: '16px 16px 8px', background: sig.textColor + '03' }}>
+            <div style={{ fontSize: sig.fontSize - 1, color: sig.textColor, opacity: 0.8 }}>
+              {sig.email && <div style={{ color: sig.linkColor }}>{sig.email}</div>}
+              {sig.phone && <div style={{ marginTop: 2 }}>{sig.phone}</div>}
+              {sig.website && <div style={{ marginTop: 2, color: sig.linkColor }}>{sig.website}</div>}
+            </div>
+          </div>
+          <div style={{ width: 4, background: sig.accentColor }} />
+          <div style={{ flex: 1, padding: '16px 16px 8px', background: sig.textColor + '06' }}>
+            {sig.logoUrl ? (
+              <LogoImage logoUrl={sig.logoUrl} size={50} />
+            ) : (
+              sig.company && <div style={{ fontSize: sig.fontSize - 1, color: sig.textColor, fontWeight: 500 }}>{sig.company}</div>
+            )}
+          </div>
+        </div>
+        {(sig.linkedin || sig.twitter) && (
+          <div style={{ padding: '8px 16px', background: sig.textColor + '03', display: 'flex', gap: 12, fontSize: sig.fontSize - 2 }}>
+            {sig.linkedin && <span style={{ color: sig.linkColor }}>LinkedIn</span>}
+            {sig.twitter && <span style={{ color: sig.linkColor }}>Twitter</span>}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   const order = sig.elementOrder.length > 0 ? sig.elementOrder : ['name', 'contact', 'social'];
   
   const flexDirection = sig.layout === 'horizontal' ? 'row' : 'column';
@@ -357,8 +524,8 @@ export const signatureTemplates: SignatureTemplate[] = [
     id: 'hierarchical-sidebar',
     name: 'Lateral',
     description: 'Barra lateral accent con información organizada',
-    preview: '▌│││',
-    config: { bgColor: '#ffffff', textColor: '#334155', linkColor: '#7c3aed', accentColor: '#7c3aed', borderRadius: 0 },
+    preview: '│👤│☎',
+    config: { bgColor: '#ffffff', textColor: '#334155', linkColor: '#7c3aed', accentColor: '#7c3aed', borderRadius: 8 },
     defaultLayout: 'horizontal',
     defaultLogoPosition: 'left',
     formSections: ['basic', 'contact', 'social', 'style', 'structure'],
@@ -368,7 +535,7 @@ export const signatureTemplates: SignatureTemplate[] = [
     id: 'visual-centered',
     name: 'Centrado',
     description: 'Logo grande centrado con diseño simétrico',
-    preview: '◻👔◻',
+    preview: '⬡👤⬡',
     config: { bgColor: '#fef3c7', textColor: '#92400e', linkColor: '#d97706', accentColor: '#d97706', borderRadius: 16 },
     defaultLayout: 'centered',
     defaultLogoPosition: 'top',
@@ -379,7 +546,7 @@ export const signatureTemplates: SignatureTemplate[] = [
     id: 'visual-beside',
     name: 'Visual Lateral',
     description: 'Logo lateral con tarjetas internas',
-    preview: '▌│││',
+    preview: '👤▢▢',
     config: { bgColor: '#f0f9ff', textColor: '#0c4a6e', linkColor: '#0284c7', accentColor: '#0284c7', borderRadius: 12 },
     defaultLayout: 'horizontal',
     defaultLogoPosition: 'left',
@@ -389,7 +556,7 @@ export const signatureTemplates: SignatureTemplate[] = [
     id: 'sectoral-blocks',
     name: 'Sectorial Bloques',
     description: 'Secciones diferenciadas con colores alternados',
-    preview: '▬▬▬',
+    preview: '▢│▢│▢',
     config: { bgColor: '#ffffff', textColor: '#1f2937', linkColor: '#059669', accentColor: '#059669', borderRadius: 8 },
     defaultLayout: 'vertical',
     defaultLogoPosition: 'left',

@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Layout, Typography, Space, Card, Alert, Button, message } from 'antd';
+import { Layout, Typography, Space, Card, Alert, Button, message, Modal, List, Empty, Tabs } from 'antd';
 import { FileDropzone } from '../../components/FileDropzone';
 import { PdfGrid } from '../../components/PdfGrid';
 import { Toolbar } from '../../components/Toolbar';
 import { useAppStore } from '../../stores/appStore';
+import { PlusOutlined, FileImageOutlined } from '@ant-design/icons';
 
 if (typeof (Promise as any).withResolvers !== 'function') {
   (Promise as any).withResolvers = function<T>() {
@@ -38,10 +39,58 @@ function PdfCanvasViewer() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   
-  const { pdfFiles, overlay, setOverlay } = useAppStore();
+  // Estados para el modal de firmas
+  const [showSignatureModal, setShowSignatureModal] = useState(false);
+  const [savedSignatures, setSavedSignatures] = useState<{id: string; name: string; dataUrl: string}[]>([]);
+  const [savedStamps, setSavedStamps] = useState<{id: string; name: string; dataUrl: string}[]>([]);
+  
+  // Estados de página
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [loading, setLoading] = useState(false);
+  
+  // Obtener estados del store
+  const { pdfFiles, overlays, clearOverlays, isProcessing } = useAppStore();
+  
+  // Filtrar overlays de la página actual
+  const currentPageOverlays = overlays.filter(o => o.page === currentPage);
+  const hasOverlay = currentPageOverlays.length > 0;
+  
+  // Ejecutar apply cuando isProcessing sea true
+  useEffect(() => {
+    if (isProcessing && overlays.length > 0) {
+      handleApplyToPdf();
+      useAppStore.setState({ isProcessing: false });
+    }
+  }, [isProcessing]);
+  
+  const loadSavedItems = useCallback(() => {
+    const savedSigs = localStorage.getItem('savedSignatures');
+    const savedStmps = localStorage.getItem('savedStamps');
+    if (savedSigs) { try { setSavedSignatures(JSON.parse(savedSigs)); } catch {} }
+    if (savedStmps) { try { setSavedStamps(JSON.parse(savedStmps)); } catch {} }
+  }, []);
+  
+  const handleSelectSignature = (dataUrl: string) => {
+    useAppStore.getState().addOverlay({
+      x: 100, y: 100, width: 150, height: 75, page: currentPage,
+      imageData: dataUrl, type: 'firma' as const,
+    });
+    setShowSignatureModal(false);
+    message.success('Firma agregada a página ' + currentPage);
+  };
+  
+  const handleSelectStamp = (dataUrl: string) => {
+    useAppStore.getState().addOverlay({
+      x: 100, y: 100, width: 150, height: 150, page: currentPage,
+      imageData: dataUrl, type: 'sello' as const,
+    });
+    setShowSignatureModal(false);
+    message.success('Sello agregado a página ' + currentPage);
+  };
+  
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [_loading, setLoading] = useState(false);
   const [componentError, setComponentError] = useState<string | null>(null);
   const [dragState, setDragState] = useState<{
     isDragging: boolean;
@@ -49,6 +98,7 @@ function PdfCanvasViewer() {
     startY: number;
     startOverlayX: number;
     startOverlayY: number;
+    overlayIdx: number;
   } | null>(null);
   const [resizeState, setResizeState] = useState<{
     isResizing: boolean;
@@ -56,8 +106,17 @@ function PdfCanvasViewer() {
     startY: number;
     startWidth: number;
     startHeight: number;
+    overlayIdx: number;
   } | null>(null);
 
+  // Ejecutar apply cuando isProcessing sea true
+  useEffect(() => {
+    if (isProcessing && hasOverlay) {
+      handleApplyToPdf();
+      useAppStore.setState({ isProcessing: false });
+    }
+  }, [isProcessing]);
+  
   const initPdfJs = useCallback(async () => {
     if (pdfjsWorkerConfigured) return;
     
@@ -341,59 +400,77 @@ function PdfCanvasViewer() {
     }
   };
 
-  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!overlay) return;
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>, idx: number) => {
+    if (!currentPageOverlays[idx]) return;
 
+    const overlay = currentPageOverlays[idx];
     setDragState({
       isDragging: true,
       startX: e.clientX,
       startY: e.clientY,
       startOverlayX: overlay.x,
       startOverlayY: overlay.y,
+      overlayIdx: idx,
     });
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
-    if (!dragState || !overlay) return;
+    if (!dragState) return;
+    
+    const allOverlays = [...useAppStore.getState().overlays];
+    const overlayIdx = allOverlays.findIndex(o => o.page === currentPage && 
+      currentPageOverlays.find((co, i) => co === allOverlays[allOverlays.indexOf(o)] && 
+        currentPageOverlays.indexOf(co) === dragState.overlayIdx));
     
     const dx = e.clientX - dragState.startX;
     const dy = e.clientY - dragState.startY;
     
-    setOverlay({
-      ...overlay,
-      x: Math.max(0, dragState.startOverlayX + dx),
-      y: Math.max(0, dragState.startOverlayY + dy),
-    });
+    const globalIdx = allOverlays.findIndex(o => o.page === currentPage && currentPageOverlays.some((co, i) => co === o && i === dragState.overlayIdx));
+    if (globalIdx >= 0) {
+      allOverlays[globalIdx] = {
+        ...allOverlays[globalIdx],
+        x: Math.max(0, dragState.startOverlayX + dx),
+        y: Math.max(0, dragState.startOverlayY + dy),
+      };
+      useAppStore.setState({ overlays: allOverlays });
+    }
   };
 
   const handlePointerUp = () => {
     setDragState(null);
   };
 
-  const handleResizeStart = (e: React.PointerEvent) => {
+  const handleResizeStart = (e: React.PointerEvent, idx: number) => {
     e.stopPropagation();
-    if (!overlay) return;
+    if (!currentPageOverlays[idx]) return;
     
+    const overlay = currentPageOverlays[idx];
     setResizeState({
       isResizing: true,
       startX: e.clientX,
       startY: e.clientY,
       startWidth: overlay.width,
       startHeight: overlay.height,
+      overlayIdx: idx,
     });
   };
 
   const handleResizeMove = (e: React.PointerEvent) => {
-    if (!resizeState || !overlay) return;
+    if (!resizeState) return;
     
     const dx = e.clientX - resizeState.startX;
     const dy = e.clientY - resizeState.startY;
     
-    setOverlay({
-      ...overlay,
-      width: Math.max(50, resizeState.startWidth + dx),
-      height: Math.max(30, resizeState.startHeight + dy),
-    });
+    const allOverlays = [...useAppStore.getState().overlays];
+    const globalIdx = allOverlays.findIndex(o => o.page === currentPage && currentPageOverlays.some((co, i) => co === o && i === resizeState.overlayIdx));
+    if (globalIdx >= 0) {
+      allOverlays[globalIdx] = {
+        ...allOverlays[globalIdx],
+        width: Math.max(50, resizeState.startWidth + dx),
+        height: Math.max(30, resizeState.startHeight + dy),
+      };
+      useAppStore.setState({ overlays: allOverlays });
+    }
   };
 
   const handleResizeEnd = () => {
@@ -449,7 +526,8 @@ function PdfCanvasViewer() {
       
       const pdfDoc = await PDFDocument.load(bytesForPdfLib);
       const pages = pdfDoc.getPages();
-      const targetPage = pages[0];
+      const targetPageIndex = currentPage > 0 ? Math.min(currentPage - 1, pages.length - 1) : 0;
+      const targetPage = pages[targetPageIndex];
       
       const isPng = overlay.imageData.startsWith('data:image/png');
       let embeddedImage;
@@ -498,7 +576,8 @@ function PdfCanvasViewer() {
       URL.revokeObjectURL(url);
       message.success('PDF descargado correctamente');
       
-      useAppStore.setState({ overlay: null, pdfFiles: [], currentPdfPath: null });
+      clearOverlays();
+      useAppStore.setState({ pdfFiles: [], currentPdfPath: null });
       
     } catch (err: any) {
       console.error('[Editor] Error applying signature:', err);
@@ -509,6 +588,7 @@ function PdfCanvasViewer() {
   };
 
   return (
+    <>
     <Card
       title={
         <Space>
@@ -528,13 +608,31 @@ function PdfCanvasViewer() {
           )}
         </Space>
       }
-      extra={
-        <Button type="primary" onClick={handleApplyToPdf} disabled={loading || !overlay}>
-          Descargar PDF
-        </Button>
+extra={
+        <Space>
+          <Button onClick={() => {
+            loadSavedItems(); 
+            setShowSignatureModal(true); 
+          }} icon={<FileImageOutlined />}>
+            Elegir Firma
+          </Button>
+          {useAppStore.getState().overlays.length > 0 && (
+            <Button onClick={() => {
+              loadSavedItems(); 
+              setShowSignatureModal(true); 
+            }} icon={<PlusOutlined />}>
+              Agregar otra firma
+            </Button>
+          )}
+          <Button type="primary" onClick={() => {
+            useAppStore.setState({ isProcessing: true });
+          }}>
+            Descargar PDF
+          </Button>
+        </Space>
       }
     >
-      <div
+      <div data-viewer-apply
         ref={containerRef}
         style={{
           position: 'relative',
@@ -547,7 +645,6 @@ function PdfCanvasViewer() {
           borderRadius: 4,
           minHeight: 400,
         }}
-        onPointerDown={handlePointerDown}
         onPointerMove={(e) => {
           if (dragState) handlePointerMove(e);
           if (resizeState) handleResizeMove(e);
@@ -566,8 +663,10 @@ function PdfCanvasViewer() {
           />
         )}
         
-        {overlay && (
+        {currentPageOverlays.map((overlay, idx) => (
           <div
+            key={idx}
+            onPointerDown={(e) => handlePointerDown(e, idx)}
             style={{
               position: 'absolute',
               zIndex: 10,
@@ -575,8 +674,8 @@ function PdfCanvasViewer() {
               top: overlay.y,
               width: overlay.width,
               height: overlay.height,
-              border: dragState ? '2px solid #1890ff' : '2px dashed #94a3b8',
-              cursor: dragState ? 'grabbing' : 'grab',
+              border: (dragState?.overlayIdx === idx) ? '2px solid #1890ff' : '2px dashed #94a3b8',
+              cursor: (dragState?.overlayIdx === idx) ? 'grabbing' : 'grab',
               background: 'rgba(255,255,255,0.3)',
               userSelect: 'none',
             }}
@@ -599,7 +698,9 @@ function PdfCanvasViewer() {
               }}
               onClick={(e) => {
                 e.stopPropagation();
-                setOverlay(null);
+                const allOverlays = useAppStore.getState().overlays;
+                const otherOverlays = allOverlays.filter((_, i) => i !== idx);
+                useAppStore.setState({ overlays: otherOverlays });
               }}
             >
               ✕
@@ -614,18 +715,79 @@ function PdfCanvasViewer() {
                 background: '#1890ff',
                 cursor: 'se-resize',
               }}
-              onPointerDown={handleResizeStart}
+              onPointerDown={(e) => handleResizeStart(e, idx)}
             />
           </div>
-        )}
+        ))}
       </div>
     </Card>
+
+    <Modal
+      title="Seleccionar Firma o Sello"
+      open={showSignatureModal}
+      onCancel={() => setShowSignatureModal(false)}
+      footer={null}
+      width={600}
+    >
+      <Tabs 
+        defaultActiveKey="signatures"
+        items={[
+          {
+            key: 'signatures',
+            label: '📝 Firmas',
+            children: savedSignatures.length === 0 ? (
+              <Empty description="No hay firmas guardadas" />
+            ) : (
+              <List
+                grid={{ gutter: 16, column: 3 }}
+                dataSource={savedSignatures}
+                renderItem={(sig: any) => (
+                  <List.Item>
+                    <div 
+                      onClick={() => handleSelectSignature(sig.dataUrl)}
+                      style={{ border: '1px solid #d9d9d9', borderRadius: 8, padding: 8, cursor: 'pointer', textAlign: 'center' }}
+                    >
+                      <img src={sig.dataUrl} alt={sig.name} style={{ maxWidth: '100%', maxHeight: 80 }} />
+                      <div style={{ marginTop: 4, fontSize: 12 }}>{sig.name}</div>
+                    </div>
+                  </List.Item>
+                )}
+              />
+            ),
+          },
+          {
+            key: 'stamps',
+            label: '🔴 Sellos',
+            children: savedStamps.length === 0 ? (
+              <Empty description="No hay sellos guardados" />
+            ) : (
+              <List
+                grid={{ gutter: 16, column: 3 }}
+                dataSource={savedStamps}
+                renderItem={(stamp: any) => (
+                  <List.Item>
+                    <div 
+                      onClick={() => handleSelectStamp(stamp.dataUrl)}
+                      style={{ border: '1px solid #d9d9d9', borderRadius: 8, padding: 8, cursor: 'pointer', textAlign: 'center' }}
+                    >
+                      <img src={stamp.dataUrl} alt={stamp.name} style={{ maxWidth: '100%', maxHeight: 80 }} />
+                      <div style={{ marginTop: 4, fontSize: 12 }}>{stamp.name}</div>
+                    </div>
+                  </List.Item>
+                )}
+              />
+            ),
+          },
+        ]}
+      />
+    </Modal>
+    </>
   );
 }
 
 export function PdfEditorPage() {
   const { error, orderedPages, currentPdfPath } = useAppStore();
-
+  
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Header
@@ -639,7 +801,7 @@ export function PdfEditorPage() {
         }}
       >
         <Title level={4} style={{ margin: 0 }}>
-          {useAppStore.getState().overlay ? 'Posicionar Firma/Sello' : 'Editor PDF - Unir y reordenar páginas'}
+          {useAppStore.getState().overlays.length > 0 ? 'Posicionar Firma/Sello' : 'Editor PDF - Unir y reordenar páginas'}
         </Title>
         <Space>
           {currentPdfPath && (
@@ -662,8 +824,8 @@ export function PdfEditorPage() {
           />
         )}
 
-        {useAppStore.getState().overlay ? (
-          <PdfCanvasViewer />
+        {useAppStore.getState().overlays.length > 0 ? (
+          <PdfCanvasViewer currentPage={currentPage} />
         ) : (
           <>
             <Card

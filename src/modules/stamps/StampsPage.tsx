@@ -192,18 +192,22 @@ const applyStamp = async (stamp: Stamp) => {
           pages: [],
         };
 
+        const newOverlay = {
+          x: 100,
+          y: 100,
+          width: 150,
+          height: 150,
+          page: 1,
+          imageData: stamp.dataUrl,
+          type: 'sello' as const,
+        };
+
+        const currentOverlays = useAppStore.getState().overlays;
+        
         useAppStore.setState({
           pdfFiles: [pdfFile],
           orderedPages: [],
-          overlay: {
-            x: 100,
-            y: 100,
-            width: 150,
-            height: 150,
-            page: 1,
-            imageData: stamp.dataUrl,
-            type: 'sello',
-          },
+          overlays: [...currentOverlays, newOverlay],
           currentPdfPath: '',
         });
 
