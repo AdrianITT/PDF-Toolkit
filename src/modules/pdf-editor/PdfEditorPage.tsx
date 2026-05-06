@@ -48,6 +48,9 @@ function PdfCanvasViewer() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   
+  // Esta línea es necesaria porque PdfEditorPage pasa currentPage como prop
+  // pero no está definido en PdfCanvasViewer. Voy a eliminarla del uso en PdfEditorPage
+  
   // Obtener estados del store
   const { pdfFiles, overlays, clearOverlays, isProcessing } = useAppStore();
   
@@ -88,8 +91,6 @@ function PdfCanvasViewer() {
     message.success('Sello agregado a página ' + currentPage);
   };
   
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
   const [_loading, setLoading] = useState(false);
   const [componentError, setComponentError] = useState<string | null>(null);
   const [dragState, setDragState] = useState<{
@@ -374,28 +375,24 @@ function PdfCanvasViewer() {
 
   const handlePrevPage = () => {
     if (!cachedPdfDoc) {
-      console.error('[Editor] handlePrevPage: ERROR - cachedPdfDoc no disponible');
       message.warning('El PDF no está cargado');
       return;
     }
     if (currentPage > 1) {
       const newPage = currentPage - 1;
       setCurrentPage(newPage);
-      console.log('[Editor] handlePrevPage: Cambiando a página', newPage);
       renderPage(cachedPdfDoc, newPage);
     }
   };
 
   const handleNextPage = () => {
     if (!cachedPdfDoc) {
-      console.error('[Editor] handleNextPage: ERROR - cachedPdfDoc no disponible');
       message.warning('El PDF no está cargado');
       return;
     }
     if (currentPage < totalPages) {
       const newPage = currentPage + 1;
       setCurrentPage(newPage);
-      console.log('[Editor] handleNextPage: Cambiando a página', newPage);
       renderPage(cachedPdfDoc, newPage);
     }
   };
@@ -418,14 +415,11 @@ function PdfCanvasViewer() {
     if (!dragState) return;
     
     const allOverlays = [...useAppStore.getState().overlays];
-    const overlayIdx = allOverlays.findIndex(o => o.page === currentPage && 
-      currentPageOverlays.find((co, i) => co === allOverlays[allOverlays.indexOf(o)] && 
-        currentPageOverlays.indexOf(co) === dragState.overlayIdx));
     
     const dx = e.clientX - dragState.startX;
     const dy = e.clientY - dragState.startY;
     
-    const globalIdx = allOverlays.findIndex(o => o.page === currentPage && currentPageOverlays.some((co, i) => co === o && i === dragState.overlayIdx));
+    const globalIdx = allOverlays.findIndex(o => o.page === currentPage && currentPageOverlays.some(co => co === o && currentPageOverlays.indexOf(co) === dragState.overlayIdx));
     if (globalIdx >= 0) {
       allOverlays[globalIdx] = {
         ...allOverlays[globalIdx],
@@ -480,8 +474,9 @@ function PdfCanvasViewer() {
   const handleApplyToPdf = async () => {
     console.log('[Editor] handleApplyToPdf called');
     console.log('[Editor] pdfFiles:', pdfFiles.length);
-    
-    if (!overlay) {
+
+    const currentOverlays = useAppStore.getState().overlays;
+    if (currentOverlays.length === 0) {
       message.warning('No hay firma para aplicar');
       return;
     }
@@ -526,43 +521,47 @@ function PdfCanvasViewer() {
       
       const pdfDoc = await PDFDocument.load(bytesForPdfLib);
       const pages = pdfDoc.getPages();
-      const targetPageIndex = currentPage > 0 ? Math.min(currentPage - 1, pages.length - 1) : 0;
-      const targetPage = pages[targetPageIndex];
-      
-      const isPng = overlay.imageData.startsWith('data:image/png');
-      let embeddedImage;
-      
-      const imageArrayBuffer = dataUrlToArrayBuffer(overlay.imageData);
-      
-      if (isPng) {
-        embeddedImage = await pdfDoc.embedPng(imageArrayBuffer);
-      } else {
-        embeddedImage = await pdfDoc.embedJpg(imageArrayBuffer);
-      }
-      
-      const pageWidth = targetPage.getWidth();
-      const pageHeight = targetPage.getHeight();
 
-      const overlayX = Number(overlay.x) || 0;
-      const overlayY = Number(overlay.y) || 0;
-      const overlayW = Number(overlay.width) || 100;
-      const overlayH = Number(overlay.height) || 50;
-      
-      const scaleX = overlayW / canvas.width;
-      const scaleY = overlayH / canvas.height;
-      
-      const sigWidth = pageWidth * scaleX;
-      const sigHeight = pageHeight * scaleY;
-      
-      const pdfX = (overlayX / canvas.width) * pageWidth;
-      const pdfY = pageHeight - ((overlayY / canvas.height) * pageHeight) - sigHeight;
-      
-      targetPage.drawImage(embeddedImage, {
-        x: pdfX,
-        y: pdfY,
-        width: sigWidth,
-        height: sigHeight,
-      });
+      // Agrupar overlays por página para aplicar cada uno a su página correspondiente
+      const overlaysByPage = new Map<number, typeof currentOverlays>();
+      for (const overlay of currentOverlays) {
+        const pageNum = overlay.page || currentPage;
+        if (!overlaysByPage.has(pageNum)) overlaysByPage.set(pageNum, []);
+        overlaysByPage.get(pageNum)!.push(overlay);
+      }
+
+      for (const [pageNum, pageOverlays] of overlaysByPage) {
+        const pageIndex = pageNum - 1;
+        if (pageIndex < 0 || pageIndex >= pages.length) {
+          console.warn('[Editor] Página inválida:', pageNum);
+          continue;
+        }
+        const page = pages[pageIndex];
+        const pageWidth = page.getWidth();
+        const pageHeight = page.getHeight();
+
+        for (const overlay of pageOverlays) {
+          const isPng = overlay.imageData.startsWith('data:image/png');
+          const imageArrayBuffer = dataUrlToArrayBuffer(overlay.imageData);
+          const embeddedImage = isPng
+            ? await pdfDoc.embedPng(imageArrayBuffer)
+            : await pdfDoc.embedJpg(imageArrayBuffer);
+
+          const overlayX = Number(overlay.x) || 0;
+          const overlayY = Number(overlay.y) || 0;
+          const overlayW = Number(overlay.width) || 100;
+          const overlayH = Number(overlay.height) || 50;
+
+          const scaleX = overlayW / canvas.width;
+          const scaleY = overlayH / canvas.height;
+          const sigWidth = pageWidth * scaleX;
+          const sigHeight = pageHeight * scaleY;
+          const pdfX = (overlayX / canvas.width) * pageWidth;
+          const pdfY = pageHeight - ((overlayY / canvas.height) * pageHeight) - sigHeight;
+
+          page.drawImage(embeddedImage, { x: pdfX, y: pdfY, width: sigWidth, height: sigHeight });
+        }
+      }
       
       const pdfBytes = await pdfDoc.save();
       const blob = new Blob([pdfBytes as any], { type: 'application/pdf' });
@@ -663,10 +662,10 @@ extra={
           />
         )}
         
-        {currentPageOverlays.map((overlay, idx) => (
-          <div
-            key={idx}
-            onPointerDown={(e) => handlePointerDown(e, idx)}
+       {currentPageOverlays.map((overlay, idx) => (
+           <div
+             key={`overlay-${overlay.imageData.slice(-10)}-${overlay.page}`}
+             onPointerDown={(e) => handlePointerDown(e, idx)}
             style={{
               position: 'absolute',
               zIndex: 10,
@@ -825,7 +824,7 @@ export function PdfEditorPage() {
         )}
 
         {useAppStore.getState().overlays.length > 0 ? (
-          <PdfCanvasViewer currentPage={currentPage} />
+          <PdfCanvasViewer />
         ) : (
           <>
             <Card

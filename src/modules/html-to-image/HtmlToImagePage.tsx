@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Card, Input, Row, Col, Button, ColorPicker, message, Space, Slider, List, Modal, Empty, Tabs, Radio, Upload } from 'antd';
+import { Card, Input, Row, Col, Button, ColorPicker, message, Space, Slider, List, Modal, Empty, Tabs, Radio, Upload, Checkbox } from 'antd';
 import { 
   DownloadOutlined, 
   ReloadOutlined,
@@ -50,6 +50,20 @@ export function HtmlToImagePage() {
         linkColor: template.config.linkColor,
         accentColor: template.config.accentColor,
         borderRadius: template.config.borderRadius,
+        iconStyle: 'emoji',
+        visibleFields: {
+          email: true,
+          phone: true,
+          website: true,
+          address: false,
+          linkedin: true,
+          twitter: true,
+          instagram: false,
+          facebook: false,
+          skype: false,
+        },
+        photoSize: 80,
+        logoSize: 60,
       }));
       setSelectedTemplate(templateId);
       message.success(`Plantilla "${template.name}" aplicada`);
@@ -65,6 +79,20 @@ export function HtmlToImagePage() {
       linkColor: template?.config.linkColor || defaultSignature.linkColor,
       accentColor: template?.config.accentColor || defaultSignature.accentColor,
       borderRadius: template?.config.borderRadius || defaultSignature.borderRadius,
+      iconStyle: 'emoji',
+      visibleFields: {
+        email: true,
+        phone: true,
+        website: true,
+        address: false,
+        linkedin: true,
+        twitter: true,
+        instagram: false,
+        facebook: false,
+        skype: false,
+      },
+      photoSize: 80,
+      logoSize: 60,
     });
     message.info('Firma reiniciada');
   }, [selectedTemplate]);
@@ -103,18 +131,40 @@ export function HtmlToImagePage() {
   const previewWidth = previewMode === 'mobile' ? 375 : 500;
 
   const generateHtmlFromSignature = (): string => {
+    const vf = sig.visibleFields || defaultSignature.visibleFields;
+    const iconStyle = sig.iconStyle || 'emoji';
+    const getIcon = (type: 'email' | 'phone' | 'web' | 'address' | 'skype') => {
+      if (iconStyle === 'none') return '';
+      if (iconStyle === 'text') {
+        const labels = { email: 'EMAIL', phone: 'TEL', web: 'WEB', address: 'DIR', skype: 'SKYPE' };
+        return `<span style="margin-right:4px; font-weight:600; font-size:11px;">${labels[type]}</span>`;
+      }
+      const emojis = { email: '✉️', phone: '📞', web: '🌐', address: '📍', skype: '💬' };
+      return `<span style="margin-right:4px;">${emojis[type]}</span>`;
+    };
     return `<table cellpadding="0" cellspacing="0" style="font-family: Arial; width: ${previewWidth}px;">
 <tr><td style="padding: 16px; background: ${sig.bgColor}; border-radius: ${sig.borderRadius}px;">
 <table cellpadding="0" cellspacing="0"><tr>
 ${sig.logoUrl ? `<td style="padding-right: 16px;"><img src="${sig.logoUrl}" alt="Logo" style="width: 60px;"></td>` : ''}
-<td><div style="font-size: ${sig.fontSize + 6}px; font-weight: bold; color: ${sig.textColor};">${sig.name || 'Tu Nombre'}</div>
-${sig.title ? `<div style="font-size: ${sig.fontSize + 2}px; color: ${sig.accentColor};">${sig.title}</div>` : ''}
-${sig.company ? `<div style="font-size: ${sig.fontSize}px; color: ${sig.textColor};">${sig.company}</div>` : ''}
-<div style="font-size: ${sig.fontSize}px; color: ${sig.textColor}; margin-top: 8px;">
-${sig.email ? `<a href="mailto:${sig.email}" style="color: ${sig.linkColor};">${sig.email}</a><br/>` : ''}
-${sig.phone ? `<span>${sig.phone}</span><br/>` : ''}
-${sig.website ? `<a href="https://${sig.website}" style="color: ${sig.linkColor};">${sig.website}</a>` : ''}
-</div></td></tr></table></td></tr></table>`;
+<td>
+  <div style="font-size: ${sig.fontSize + 6}px; font-weight: bold; color: ${sig.textColor};">${sig.name || 'Tu Nombre'}</div>
+  ${sig.title ? `<div style="font-size: ${sig.fontSize + 2}px; color: ${sig.linkColor};">${sig.title}</div>` : ''}
+  ${sig.company ? `<div style="font-size: ${sig.fontSize}px; color: ${sig.textColor};">${sig.company}</div>` : ''}
+  <div style="font-size: ${sig.fontSize}px; color: ${sig.textColor}; margin-top: 8px;">
+    ${vf.email !== false && sig.email ? `<div>${getIcon('email')}<a href="mailto:${sig.email}" style="color: ${sig.linkColor};">${sig.email}</a></div>` : ''}
+    ${vf.phone !== false && sig.phone ? `<div>${getIcon('phone')}<span>${sig.phone}</span></div>` : ''}
+    ${vf.website !== false && sig.website ? `<div>${getIcon('web')}<a href="https://${sig.website}" style="color: ${sig.linkColor};">${sig.website}</a></div>` : ''}
+    ${vf.address !== false && sig.address ? `<div>${getIcon('address')}<span>${sig.address}</span></div>` : ''}
+    ${vf.skype !== false && sig.skype ? `<div>${getIcon('skype')}<span>${sig.skype}</span></div>` : ''}
+  </div>
+  ${(vf.linkedin !== false && sig.linkedin) || (vf.twitter !== false && sig.twitter) || (vf.instagram !== false && sig.instagram) || (vf.facebook !== false && sig.facebook) ? `
+  <div style="display:flex; gap:12px; font-size: ${sig.fontSize - 1}px; margin-top: 8px;">
+    ${vf.linkedin !== false && sig.linkedin ? `<a href="${sig.linkedin}" style="color: ${sig.linkColor};">LinkedIn</a>` : ''}
+    ${vf.twitter !== false && sig.twitter ? `<a href="${sig.twitter}" style="color: ${sig.linkColor};">Twitter</a>` : ''}
+    ${vf.instagram !== false && sig.instagram ? `<a href="${sig.instagram}" style="color: ${sig.linkColor};">Instagram</a>` : ''}
+    ${vf.facebook !== false && sig.facebook ? `<a href="${sig.facebook}" style="color: ${sig.linkColor};">Facebook</a>` : ''}
+  </div>` : ''}
+</td></tr></table></td></tr></table>`;
   };
   return (
     <Card
@@ -190,13 +240,47 @@ ${sig.website ? `<a href="https://${sig.website}" style="color: ${sig.linkColor}
                 <Card size="small" style={{ marginBottom: 16, background: '#fafafa' }}>
                   <div style={{ fontWeight: 600, color: '#333', fontSize: 13 }}>③ Redes Sociales</div>
                   <Row gutter={[8, 8]} style={{ marginTop: 12 }}>
-                    <Col span={24}><Input placeholder="LinkedIn" value={sig.linkedin} onChange={(e) => updateField('linkedin', e.target.value)} /></Col>
-                    <Col span={24}><Input placeholder="Twitter" value={sig.twitter} onChange={(e) => updateField('twitter', e.target.value)} /></Col>
+                    <Col span={12}><Input placeholder="LinkedIn" value={sig.linkedin} onChange={(e) => updateField('linkedin', e.target.value)} /></Col>
+                    <Col span={12}><Input placeholder="Twitter" value={sig.twitter} onChange={(e) => updateField('twitter', e.target.value)} /></Col>
+                    <Col span={12}><Input placeholder="Instagram" value={sig.instagram} onChange={(e) => updateField('instagram', e.target.value)} /></Col>
+                    <Col span={12}><Input placeholder="Facebook" value={sig.facebook} onChange={(e) => updateField('facebook', e.target.value)} /></Col>
+                    <Col span={24}><Input placeholder="Skype" value={sig.skype} onChange={(e) => updateField('skype', e.target.value)} /></Col>
+                  </Row>
+                </Card>
+                <Card size="small" style={{ marginBottom: 16, background: '#fafafa' }}>
+                  <div style={{ fontWeight: 600, color: '#333', fontSize: 13, marginBottom: 8 }}>④ Visibilidad de Campos</div>
+                  <Row gutter={[8, 8]} style={{ marginBottom: 8 }}>
+                    <Col span={12}><Button size="small" onClick={() => updateField('visibleFields', {
+                      email: true, phone: true, website: true, address: true,
+                      linkedin: true, twitter: true, instagram: true, facebook: true, skype: true
+                    })}>Seleccionar todos</Button></Col>
+                    <Col span={12}><Button size="small" onClick={() => updateField('visibleFields', {
+                      email: false, phone: false, website: false, address: false,
+                      linkedin: false, twitter: false, instagram: false, facebook: false, skype: false
+                    })}>Deseleccionar todos</Button></Col>
+                    <Col span={24}><span style={{ fontSize: 12, color: '#666' }}>
+                      {Object.values(sig.visibleFields || {}).filter(Boolean).length} de 8 campos visibles
+                    </span></Col>
+                  </Row>
+                  <div style={{ fontSize: 12, fontWeight: 500, color: '#666', marginBottom: 4 }}>Contacto</div>
+                  <Row gutter={[8, 4]}>
+                    <Col span={12}><Checkbox checked={sig.visibleFields?.email !== false} onChange={(checked) => updateField('visibleFields', { ...sig.visibleFields, email: checked })}>Email</Checkbox></Col>
+                    <Col span={12}><Checkbox checked={sig.visibleFields?.phone !== false} onChange={(checked) => updateField('visibleFields', { ...sig.visibleFields, phone: checked })}>Teléfono</Checkbox></Col>
+                    <Col span={12}><Checkbox checked={sig.visibleFields?.website !== false} onChange={(checked) => updateField('visibleFields', { ...sig.visibleFields, website: checked })}>Web</Checkbox></Col>
+                    <Col span={12}><Checkbox checked={sig.visibleFields?.address !== false} onChange={(checked) => updateField('visibleFields', { ...sig.visibleFields, address: checked })}>Dirección</Checkbox></Col>
+                    <Col span={24}><Checkbox checked={sig.visibleFields?.skype !== false} onChange={(checked) => updateField('visibleFields', { ...sig.visibleFields, skype: checked })}>Skype</Checkbox></Col>
+                  </Row>
+                  <div style={{ fontSize: 12, fontWeight: 500, color: '#666', margin: '8px 0 4px' }}>Redes Sociales</div>
+                  <Row gutter={[8, 4]}>
+                    <Col span={12}><Checkbox checked={sig.visibleFields?.linkedin !== false} onChange={(checked) => updateField('visibleFields', { ...sig.visibleFields, linkedin: checked })}>LinkedIn</Checkbox></Col>
+                    <Col span={12}><Checkbox checked={sig.visibleFields?.twitter !== false} onChange={(checked) => updateField('visibleFields', { ...sig.visibleFields, twitter: checked })}>Twitter</Checkbox></Col>
+                    <Col span={12}><Checkbox checked={sig.visibleFields?.instagram !== false} onChange={(checked) => updateField('visibleFields', { ...sig.visibleFields, instagram: checked })}>Instagram</Checkbox></Col>
+                    <Col span={12}><Checkbox checked={sig.visibleFields?.facebook !== false} onChange={(checked) => updateField('visibleFields', { ...sig.visibleFields, facebook: checked })}>Facebook</Checkbox></Col>
                   </Row>
                 </Card>
 
                 <Card size="small" style={{ marginBottom: 16, background: '#fafafa' }}>
-                  <div style={{ fontWeight: 600, color: '#333', fontSize: 13 }}>④ Apariencia</div>
+                  <div style={{ fontWeight: 600, color: '#333', fontSize: 13 }}>⑤ Apariencia</div>
                   <Row gutter={[8, 8]} style={{ marginTop: 12 }}>
                     <Col span={12}>
                       <div style={{ fontSize: 12, marginBottom: 4, color: '#666' }}>Foto de Perfil</div>
@@ -230,16 +314,29 @@ ${sig.website ? `<a href="https://${sig.website}" style="color: ${sig.linkColor}
                     </Col>
                   </Row>
                   <Row gutter={[8, 8]} style={{ marginTop: 12 }}>
+                    <Col span={12}><div style={{ fontSize: 12 }}>Foto tamaño</div><Slider min={40} max={120} value={sig.photoSize || 80} onChange={(v) => updateField('photoSize', v)} /></Col>
+                    <Col span={12}><div style={{ fontSize: 12 }}>Logo tamaño</div><Slider min={30} max={100} value={sig.logoSize || 60} onChange={(v) => updateField('logoSize', v)} /></Col>
+                  </Row>
+                  <Row gutter={[8, 8]} style={{ marginTop: 12 }}>
                     <Col span={12}><div style={{ fontSize: 12, color: '#666' }}>Fondo</div><ColorPicker value={sig.bgColor} onChange={(c) => updateField('bgColor', c.toHexString())} /></Col>
                     <Col span={12}><div style={{ fontSize: 12, color: '#666' }}>Texto</div><ColorPicker value={sig.textColor} onChange={(c) => updateField('textColor', c.toHexString())} /></Col>
                   </Row>
                 </Card>
 
                 <Card size="small" style={{ background: '#fafafa' }}>
-                  <div style={{ fontWeight: 600, color: '#333', fontSize: 13 }}>⑤ Estilos</div>
+                  <div style={{ fontWeight: 600, color: '#333', fontSize: 13 }}>⑥ Estilos</div>
                   <Row gutter={[8, 8]} style={{ marginTop: 12 }}>
                     <Col span={12}><div style={{ fontSize: 12 }}>Borde</div><Slider min={0} max={24} value={sig.borderRadius} onChange={(v) => updateField('borderRadius', v)} /></Col>
                     <Col span={12}><div style={{ fontSize: 12 }}>Acento</div><ColorPicker value={sig.accentColor} onChange={(c) => updateField('accentColor', c.toHexString())} /></Col>
+                  </Row>
+                  <Row gutter={[8, 8]} style={{ marginTop: 12 }}>
+                    <Col span={24}><div style={{ fontSize: 12, marginBottom: 4, color: '#666' }}>Iconos</div>
+                      <Radio.Group value={sig.iconStyle || 'emoji'} onChange={(e) => updateField('iconStyle', e.target.value)} size="small">
+                        <Radio.Button value="emoji">Emojis</Radio.Button>
+                        <Radio.Button value="text">Texto</Radio.Button>
+                        <Radio.Button value="none">Ninguno</Radio.Button>
+                      </Radio.Group>
+                    </Col>
                   </Row>
                 </Card>
               </Col>
