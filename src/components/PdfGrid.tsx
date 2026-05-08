@@ -60,7 +60,7 @@ export function PdfGrid() {
             padding: 16,
             maxHeight: 'calc(100vh - 280px)',
             overflowY: 'auto',
-            background: '#fff',
+            background: 'var(--ant-color-bg-container)',
           }}
         >
           {orderedPages.map((page, index) => (

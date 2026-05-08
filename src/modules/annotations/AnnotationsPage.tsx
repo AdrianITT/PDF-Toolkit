@@ -350,7 +350,7 @@ export function AnnotationsPage() {
           </Button>
         </Upload>
         
-        <span style={{ marginLeft: 8, color: '#666' }}>
+        <span style={{ marginLeft: 8, color: 'var(--text-secondary)' }}>
           {annotations.length} anotación(es) en total
         </span>
       </div>
@@ -361,7 +361,7 @@ export function AnnotationsPage() {
           position: 'relative',
           display: 'flex',
           justifyContent: 'center',
-          background: '#f5f5f5',
+          background: 'var(--bg-tertiary)',
           padding: 16,
           borderRadius: 4,
           minHeight: 400,
@@ -369,7 +369,7 @@ export function AnnotationsPage() {
       >
         {!pdfFile ? (
           <div style={{ textAlign: 'center', padding: 40 }}>
-            <HighlightOutlined style={{ fontSize: 48, color: '#ccc' }} />
+            <HighlightOutlined style={{ fontSize: 48, color: 'var(--text-tertiary)' }} />
             <p>Sube un PDF para comenzar a anotar</p>
           </div>
         ) : (

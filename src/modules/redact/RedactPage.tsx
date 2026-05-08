@@ -269,7 +269,7 @@ export function RedactPage() {
             Aplicar Redacción y Descargar PDF
           </Button>
 
-          <span style={{ marginLeft: 8, color: '#666' }}>
+          <span style={{ marginLeft: 8, color: 'var(--text-secondary)' }}>
             {redactions.length} redacción(es) en total
           </span>
         </Space>
@@ -293,7 +293,7 @@ export function RedactPage() {
           position: 'relative',
           display: 'flex',
           justifyContent: 'center',
-          background: '#f5f5f5',
+          background: 'var(--bg-tertiary)',
           padding: 16,
           borderRadius: 4,
           minHeight: 400,

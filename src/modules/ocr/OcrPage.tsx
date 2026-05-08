@@ -203,7 +203,7 @@ export function OcrPage() {
         </Upload>
         
         {pdfFile && (
-          <span style={{ marginLeft: 8, color: '#666' }}>
+          <span style={{ marginLeft: 8, color: 'var(--text-secondary)' }}>
             {totalPages} página(s)
           </span>
         )}
@@ -225,7 +225,7 @@ export function OcrPage() {
       {isProcessing && (
         <div style={{ marginBottom: 16 }}>
           <Progress percent={Math.round(progress)} status="active" />
-          <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
+          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>
             Procesando páginas... Esto puede tardar varios minutos.
           </div>
         </div>
@@ -237,7 +237,7 @@ export function OcrPage() {
             <Button type="primary" onClick={downloadText}>
               Descargar Texto
             </Button>
-            <span style={{ marginLeft: 8, color: '#666' }}>
+            <span style={{ marginLeft: 8, color: 'var(--text-secondary)' }}>
               {results.length} página(s) procesada(s)
             </span>
           </div>
@@ -255,7 +255,7 @@ export function OcrPage() {
                     </Tag>
                   </div>
                   <div style={{
-                    background: '#f5f5f5',
+                    background: 'var(--bg-tertiary)',
                     padding: 12,
                     borderRadius: 4,
                     maxHeight: 200,

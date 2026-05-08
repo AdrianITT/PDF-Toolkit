@@ -1038,10 +1038,9 @@ ${sig.logoUrl ? `<td style="padding-right: 16px;"><img src="${sig.logoUrl}" alt=
                       ref={previewRef} 
                       style={{ 
                         padding: 24, 
-                        background: selectedClient === 'outlook' ? '#f0f0f0' : 
-                                 selectedClient === 'gmail' ? '#fff' : 
-                                 selectedClient === 'apple-mail' ? '#f5f5f5' : 
-                                 '#f5f5f5',
+                        background: selectedClient === 'outlook' ? 'var(--bg-tertiary)' : 
+                                 selectedClient === 'gmail' ? 'var(--bg-primary)' : 
+                                 'var(--bg-tertiary)',
                         borderRadius: selectedClient === 'apple-mail' ? 16 : 8,
                         minHeight: 200,
                         maxWidth: selectedClient === 'outlook' ? 600 : 
@@ -1080,7 +1079,7 @@ ${sig.logoUrl ? `<td style="padding-right: 16px;"><img src="${sig.logoUrl}" alt=
               <Row gutter={[16, 16]}>
                 <Col xs={24} lg={12}>
                   <div style={{ marginBottom: 8, fontWeight: 500, fontSize: 12 }}>HTML (puedes pegar HTML completo con &lt;style&gt;)</div>
-                  <Input.TextArea value={editorHtmlContent} onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setEditorHtmlContent(e.target.value)} autoSize={{ minRows: 12, maxRows: 20 }} style={{ fontFamily: 'monospace', fontSize: 12, background: '#f5f5f5', color: '#333', border: '1px solid #d9d9d9' }} placeholder="<!-- Pega tu HTML aquí (puede incluir <!DOCTYPE>, <html>, <head> con <style>) -->" />
+                  <Input.TextArea value={editorHtmlContent} onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setEditorHtmlContent(e.target.value)} autoSize={{ minRows: 12, maxRows: 20 }} style={{ fontFamily: 'monospace', fontSize: 12, background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)' }} placeholder="<!-- Pega tu HTML aquí (puede incluir <!DOCTYPE>, <html>, <head> con <style>) -->" />
                   <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
                     <Radio.Group value={exportFormat} onChange={(e) => setExportFormat(e.target.value)}>
                       <Radio.Button value="png">PNG</Radio.Button>

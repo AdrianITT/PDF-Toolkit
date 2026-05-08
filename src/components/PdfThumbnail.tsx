@@ -73,7 +73,7 @@ export function PdfThumbnail({ page, index }: PdfThumbnailProps) {
           borderRadius: 4,
           padding: '2px 6px',
           fontSize: 12,
-          color: '#666',
+          color: 'var(--text-secondary)',
         }}
       >
         {index + 1}
@@ -92,9 +92,9 @@ export function PdfThumbnail({ page, index }: PdfThumbnailProps) {
       <div
         style={{
           padding: '4px 8px',
-          background: '#f5f5f5',
+          background: 'var(--bg-tertiary)',
           fontSize: 11,
-          color: '#666',
+          color: 'var(--text-secondary)',
           whiteSpace: 'nowrap',
           overflow: 'hidden',
           textOverflow: 'ellipsis',

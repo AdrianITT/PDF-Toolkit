@@ -200,7 +200,7 @@ export function ImageExtractorPage() {
       {isProcessing && (
         <div style={{ marginBottom: 16 }}>
           <Progress percent={Math.round(progress)} status="active" />
-          <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
+          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>
             Procesando páginas...
           </div>
         </div>

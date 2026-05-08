@@ -306,7 +306,7 @@ function App() {
           </Sider>
           <Layout>
             <Toolbar />
-            <Content style={{ padding: 24, background: themeMode === 'dark' ? '#000000' : '#f5f5f5', overflow: 'auto' }}>
+            <Content style={{ padding: 24, background: 'var(--ant-color-bg-layout)', overflow: 'auto' }}>
               {CurrentModule}
             </Content>
           </Layout>

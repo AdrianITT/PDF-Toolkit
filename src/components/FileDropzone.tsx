@@ -38,8 +38,8 @@ export function FileDropzone() {
       <div
         style={{
           padding: isDragActive ? 20 : 40,
-          background: isDragActive ? '#f0f5ff' : '#fafafa',
-          border: '2px dashed #d9d9d9',
+          background: isDragActive ? 'var(--hover-bg)' : 'var(--bg-secondary)',
+          border: '2px dashed var(--border-color)',
           borderRadius: 8,
           textAlign: 'center',
           cursor: 'pointer',
@@ -56,7 +56,7 @@ export function FileDropzone() {
             <p className="ant-upload-text" style={{ fontSize: 16 }}>
               Arrastra archivos PDF aquí o haz clic para seleccionar
             </p>
-            <p className="ant-upload-hint" style={{ color: '#999' }}>
+            <p className="ant-upload-hint" style={{ color: 'var(--text-tertiary)' }}>
               Soporta múltiples archivos PDF
             </p>
           </>
