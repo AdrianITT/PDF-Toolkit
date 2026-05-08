@@ -1,10 +1,13 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { Layout, Typography, Space, Card, Alert, Button, message, Modal, List, Empty, Tabs } from 'antd';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
+import { Layout, Typography, Space, Card, Alert, Button, message } from 'antd';
 import { FileDropzone } from '../../components/FileDropzone';
 import { PdfGrid } from '../../components/PdfGrid';
 import { Toolbar } from '../../components/Toolbar';
 import { useAppStore } from '../../stores/appStore';
 import { PlusOutlined, FileImageOutlined } from '@ant-design/icons';
+import { loadPdf, renderPage, isPdfValid, type PDFDocumentProxy } from '../../utils/pdfjs';
+import { SignatureModal } from './SignatureModal';
+import { SearchBar } from './SearchBar';
 
 if (typeof (Promise as any).withResolvers !== 'function') {
   (Promise as any).withResolvers = function<T>() {
@@ -21,9 +24,8 @@ if (typeof (Promise as any).withResolvers !== 'function') {
 const { Header, Content } = Layout;
 const { Title } = Typography;
 
-let pdfjsWorkerConfigured = false;
 let cachedPdfData: Uint8Array | null = null;
-let cachedPdfDoc: any = null;
+
 
 function dataUrlToArrayBuffer(dataUrl: string): ArrayBuffer {
   const base64 = dataUrl.split(',')[1];
@@ -41,22 +43,43 @@ function PdfCanvasViewer() {
   
   // Estados para el modal de firmas
   const [showSignatureModal, setShowSignatureModal] = useState(false);
-  const [savedSignatures, setSavedSignatures] = useState<{id: string; name: string; dataUrl: string}[]>([]);
-  const [savedStamps, setSavedStamps] = useState<{id: string; name: string; dataUrl: string}[]>([]);
   
   // Estados de página
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  
-  // Esta línea es necesaria porque PdfEditorPage pasa currentPage como prop
-  // pero no está definido en PdfCanvasViewer. Voy a eliminarla del uso en PdfEditorPage
-  
+  const [pdfDoc, setPdfDoc] = useState<PDFDocumentProxy | null>(null);
+  const [canvasDim, setCanvasDim] = useState({ width: 0, height: 0 });
+
   // Obtener estados del store
-  const { pdfFiles, overlays, clearOverlays, isProcessing } = useAppStore();
+  const pdfFiles = useAppStore(state => state.pdfFiles);
+  const overlays = useAppStore(state => state.overlays);
+  const clearOverlays = useAppStore(state => state.clearOverlays);
+  const lastModule = useAppStore(state => state.lastModule);
+  const isProcessing = useAppStore(state => state.isProcessing);
   
+  // Sincronizar dimensiones visuales del canvas
+  const updateCanvasDim = useCallback(() => {
+    if (canvasRef.current) {
+      setCanvasDim({
+        width: canvasRef.current.clientWidth,
+        height: canvasRef.current.clientHeight
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const observer = new ResizeObserver(updateCanvasDim);
+    observer.observe(canvas);
+    updateCanvasDim();
+
+    return () => observer.disconnect();
+  }, [updateCanvasDim, currentPage]);
+
   // Filtrar overlays de la página actual
   const currentPageOverlays = overlays.filter(o => o.page === currentPage);
-  const hasOverlay = currentPageOverlays.length > 0;
   
   // Ejecutar apply cuando isProcessing sea true
   useEffect(() => {
@@ -64,18 +87,31 @@ function PdfCanvasViewer() {
       handleApplyToPdf();
       useAppStore.setState({ isProcessing: false });
     }
-  }, [isProcessing]);
-  
-  const loadSavedItems = useCallback(() => {
-    const savedSigs = localStorage.getItem('savedSignatures');
-    const savedStmps = localStorage.getItem('savedStamps');
-    if (savedSigs) { try { setSavedSignatures(JSON.parse(savedSigs)); } catch {} }
-    if (savedStmps) { try { setSavedStamps(JSON.parse(savedStmps)); } catch {} }
-  }, []);
-  
+  }, [isProcessing, overlays.length]);
+
+  // Limpiar estado cuando se llega desde Dashboard
+  useEffect(() => {
+    if (lastModule === 'dashboard' && (pdfFiles.length > 0 || overlays.length > 0)) {
+      console.log('[Editor] Limpiando estado到来的 de Dashboard');
+      useAppStore.setState({ pdfFiles: [], overlays: [], currentPdfPath: null, orderedPages: [] });
+    }
+  }, [lastModule]);
+
+   // Renderizar página cuando canvas esté disponible
+   useLayoutEffect(() => {
+     if (canvasRef.current && pdfDoc && currentPage > 0) {
+       console.log('[Editor] renderPage: Iniciando render de página', currentPage);
+       renderPage(pdfDoc, currentPage, canvasRef.current).catch(err => {
+         if (err.name === 'RenderingCancelledException') return;
+         console.error('[Editor] Error renderizando página:', err);
+         message.error('Error al renderizar la página');
+       });
+     }
+   }, [canvasRef.current, currentPage, pdfDoc]);
+
   const handleSelectSignature = (dataUrl: string) => {
     useAppStore.getState().addOverlay({
-      x: 100, y: 100, width: 150, height: 75, page: currentPage,
+      x: 50, y: 50, width: 150, height: 75, page: currentPage,
       imageData: dataUrl, type: 'firma' as const,
     });
     setShowSignatureModal(false);
@@ -84,14 +120,14 @@ function PdfCanvasViewer() {
   
   const handleSelectStamp = (dataUrl: string) => {
     useAppStore.getState().addOverlay({
-      x: 100, y: 100, width: 150, height: 150, page: currentPage,
+      x: 50, y: 50, width: 150, height: 150, page: currentPage,
       imageData: dataUrl, type: 'sello' as const,
     });
     setShowSignatureModal(false);
     message.success('Sello agregado a página ' + currentPage);
   };
   
-  const [_loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [componentError, setComponentError] = useState<string | null>(null);
   const [dragState, setDragState] = useState<{
     isDragging: boolean;
@@ -110,183 +146,7 @@ function PdfCanvasViewer() {
     overlayIdx: number;
   } | null>(null);
 
-  // Ejecutar apply cuando isProcessing sea true
-  useEffect(() => {
-    if (isProcessing && hasOverlay) {
-      handleApplyToPdf();
-      useAppStore.setState({ isProcessing: false });
-    }
-  }, [isProcessing]);
-  
-  const initPdfJs = useCallback(async () => {
-    if (pdfjsWorkerConfigured) return;
-    
-    const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
-    pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-      'pdfjs-dist/legacy/build/pdf.worker.min.mjs',
-      import.meta.url
-    ).toString();
-    pdfjsWorkerConfigured = true;
-    console.log('[Editor] PDF.js worker configurado (v4 legacy)');
-  }, []);
-
-  const renderPage = async (pdfDoc: any, pageNum: number) => {
-    let canvas = canvasRef.current;
-    
-    if (!canvas) {
-      console.log('[Editor] renderPage: Canvas no disponible, esperando...');
-      for (let i = 0; i < 10; i++) {
-        await new Promise(r => setTimeout(r, 100));
-        canvas = canvasRef.current;
-        if (canvas) break;
-      }
-    }
-    
-    if (!canvas || !pdfDoc) {
-      console.error('[Editor] renderPage: ERROR - canvas:', !!canvas, 'pdfDoc:', !!pdfDoc);
-      message.error('Error: Canvas o PDF no disponible');
-      return;
-    }
-
-    try {
-      console.log('[Editor] renderPage: Obteniendo página', pageNum, 'de pdfDoc:', typeof pdfDoc);
-      
-      let page: any;
-      try {
-        page = await pdfDoc.getPage(pageNum);
-      } catch (pageErr: any) {
-        console.error('[Editor] renderPage: ERROR al obtener página:', pageErr.message);
-        message.error('Error al obtener página del PDF');
-        return;
-      }
-      
-      console.log('[Editor] renderPage: Página obtenida, tipo:', Object.prototype.toString.call(page), 'keys:', Object.keys(page).slice(0, 10));
-      
-      let pageWidth: number = 0;
-      let pageHeight: number = 0;
-      
-      try {
-        // Intento 1: Método getWidth() con try-catch interno
-        if (typeof page.getWidth === 'function') {
-          try {
-            pageWidth = page.getWidth();
-            pageHeight = page.getHeight();
-            console.log('[Editor] renderPage: Dimensiones via getWidth():', pageWidth, 'x', pageHeight);
-          } catch (e) {
-            console.log('[Editor] renderPage: getWidth() falló, intentando alternativas...');
-          }
-        }
-        
-        // Intento 2: page.get() devuelve Promise
-        if (!pageWidth && typeof page.get === 'function') {
-          try {
-            const pageProxy = await page.get();
-            pageWidth = pageProxy.getWidth();
-            pageHeight = pageProxy.getHeight();
-            console.log('[Editor] renderPage: Dimensiones via page.get():', pageWidth, 'x', pageHeight);
-          } catch (e) {
-            console.log('[Editor] renderPage: page.get() falló');
-          }
-        }
-        
-        // Intento 3: Propiedades directas page.width/height
-        if (!pageWidth && page.width && page.height) {
-          pageWidth = page.width;
-          pageHeight = page.height;
-          console.log('[Editor] renderPage: Dimensiones via props directas:', pageWidth, 'x', pageHeight);
-        }
-        
-        // Intento 4: _pageInfo.view [x, y, width, height]
-        if (!pageWidth && page._pageInfo?.view?.length >= 4) {
-          pageWidth = page._pageInfo.view[2];
-          pageHeight = page._pageInfo.view[3];
-          console.log('[Editor] renderPage: Dimensiones via _pageInfo.view:', pageWidth, 'x', pageHeight);
-        }
-        
-        // Intento 5: Buscar en transport (PDF.js 4.x)
-        if (!pageWidth && page._transport?.commonObjs) {
-          try {
-            const objs = page._transport.commonObjs;
-            const pageKey = Object.keys(objs).find(k => k.startsWith('page'));
-            if (pageKey && objs[pageKey]) {
-              const pageObj = typeof objs[pageKey].get === 'function' 
-                ? await objs[pageKey].get() 
-                : objs[pageKey];
-              if (pageObj?.width && pageObj?.height) {
-                pageWidth = pageObj.width;
-                pageHeight = pageObj.height;
-                console.log('[Editor] renderPage: Dimensiones via transport:', pageWidth, 'x', pageHeight);
-              }
-            }
-          } catch (e) {
-            console.log('[Editor] renderPage: Fallback transport falló');
-          }
-        }
-        
-        // Intento 6:默认值 como último recurso
-        if (!pageWidth || !pageHeight) {
-          pageWidth = 595;
-          pageHeight = 841;
-          console.warn('[Editor] renderPage: Usando dimensiones por defecto: 595x841 (A4)');
-        }
-        
-        console.log('[Editor] renderPage: Dimensiones finales:', pageWidth, 'x', pageHeight);
-      } catch (dimErr: any) {
-        console.error('[Editor] renderPage: ERROR obteniendo dimensiones:', dimErr.message);
-        message.error('Error al leer dimensiones del PDF');
-        return;
-      }
-      
-      console.log('[Editor] renderPage: Dimensiones página:', pageWidth, 'x', pageHeight);
-      
-      const container = containerRef.current;
-      const containerWidth = container?.clientWidth || 800;
-      
-      const scale = containerWidth / pageWidth;
-      const clampedScale = Math.min(Math.max(scale, 0.5), 2);
-      
-      let viewport: any;
-      let renderTask: any;
-      
-      try {
-        viewport = page.getViewport ? page.getViewport({ scale: clampedScale }) : page.getViewport({ scale: clampedScale });
-      } catch (vpErr: any) {
-        console.error('[Editor] renderPage: ERROR creando viewport:', vpErr.message);
-        message.error('Error al crear vista de página');
-        return;
-      }
-      
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      canvas.style.width = viewport.width + 'px';
-      canvas.style.height = viewport.height + 'px';
-      canvas.style.maxWidth = '100%';
-      canvas.style.height = 'auto';
-      
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        console.error('[Editor] No se pudo obtener contexto 2D');
-        return;
-      }
-
-      try {
-        renderTask = page.render({ canvasContext: ctx, viewport });
-        await renderTask.promise;
-      } catch (rErr: any) {
-        console.error('[Editor] renderPage: ERROR al renderizar:', rErr.message);
-        message.error('Error al renderizar la página');
-        return;
-      }
-      
-      console.log('[Editor] renderPage: Página renderizada exitosamente', pageNum, 'dims:', canvas.width, 'x', canvas.height);
-    } catch (err: any) {
-      if (err?.name !== 'RenderingCancelledException') {
-        console.error('[Editor] Error renderizando página:', err);
-      }
-    }
-  };
-
-  const loadPdf = useCallback(async () => {
+  const loadPdfCallback = useCallback(async () => {
     console.log('[Editor] loadPdf: Iniciando validación...');
     
     const storeData = pdfFiles[0]?.data as Uint8Array | undefined;
@@ -305,10 +165,7 @@ function PdfCanvasViewer() {
       return;
     }
 
-    // Validar que sea un PDF válido
-    const headerCheck = new Uint8Array(data.slice(0, 5));
-    const headerStr = String.fromCharCode.apply(null, Array.from(headerCheck));
-    if (!headerStr.startsWith('%PDF')) {
+    if (!isPdfValid(data)) {
       console.error('[Editor] loadPdf: ERROR - Archivo no es PDF válido');
       message.error('El archivo no es un PDF válido');
       setComponentError('El archivo no es un PDF válido');
@@ -339,61 +196,50 @@ function PdfCanvasViewer() {
       
       console.log('[Editor] loadPdf: Canvas disponible');
       
-      await initPdfJs();
+      const { doc, numPages } = await loadPdf(data);
+      cachedPdfData = data;
+      setPdfDoc(doc);
+      setTotalPages(numPages);
       
-      const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
-      const sourceBytes = data as Uint8Array;
-      // PDF.js transfiere el ArrayBuffer al worker (GetDocRequest); si pasamos el mismo
-      // Uint8Array que está en el store, el buffer queda detached y byteLength === 0.
-      cachedPdfData = new Uint8Array(sourceBytes);
-      const pdfJsBytes = new Uint8Array(sourceBytes);
-      const pdfDoc = await pdfjsLib.getDocument({ data: pdfJsBytes }).promise;
-      cachedPdfDoc = pdfDoc;
-      setTotalPages(pdfDoc.numPages);
-      setCurrentPage(1);
-      
-      console.log('[Editor] loadPdf: PDF cargado, numPages:', pdfDoc.numPages);
-      
-      await renderPage(pdfDoc, 1);
+      console.log('[Editor] loadPdf: PDF cargado exitosamente. Páginas:', numPages);
+      updateCanvasDim();
     } catch (err: any) {
-      console.error('[Editor] Error loading PDF:', err);
-      setComponentError(err.message || 'Error al cargar el PDF');
-      useAppStore.getState().setError(err.message || 'Error al cargar el PDF');
-    } finally {
-      setLoading(false);
-    }
-  }, [pdfFiles, initPdfJs]);
+       console.error('[Editor] Error loading PDF:', err);
+       setComponentError(err.message || 'Error al cargar el PDF');
+       useAppStore.getState().setError(err.message || 'Error al cargar el PDF');
+     } finally {
+       setLoading(false);
+     }
+   }, [pdfFiles, updateCanvasDim]);
 
   useEffect(() => {
     console.log('[Editor] useEffect triggered, pdfFiles:', pdfFiles.length, 'data?', !!pdfFiles[0]?.data);
     const storeData = pdfFiles[0]?.data as Uint8Array | undefined;
     if (storeData && storeData.byteLength > 0) {
       console.log('[Editor] PDF data from store:', storeData.byteLength);
-      loadPdf();
+      loadPdfCallback();
     }
-  }, [pdfFiles, loadPdf]);
+  }, [pdfFiles, loadPdfCallback]);
 
   const handlePrevPage = () => {
-    if (!cachedPdfDoc) {
+    if (!pdfDoc) {
       message.warning('El PDF no está cargado');
       return;
     }
     if (currentPage > 1) {
       const newPage = currentPage - 1;
       setCurrentPage(newPage);
-      renderPage(cachedPdfDoc, newPage);
     }
   };
 
   const handleNextPage = () => {
-    if (!cachedPdfDoc) {
+    if (!pdfDoc) {
       message.warning('El PDF no está cargado');
       return;
     }
     if (currentPage < totalPages) {
       const newPage = currentPage + 1;
       setCurrentPage(newPage);
-      renderPage(cachedPdfDoc, newPage);
     }
   };
 
@@ -473,22 +319,13 @@ function PdfCanvasViewer() {
 
   const handleApplyToPdf = async () => {
     console.log('[Editor] handleApplyToPdf called');
-    console.log('[Editor] pdfFiles:', pdfFiles.length);
-
+    
     const currentOverlays = useAppStore.getState().overlays;
     if (currentOverlays.length === 0) {
       message.warning('No hay firma para aplicar');
       return;
     }
     
-    const storeBytes = pdfFiles[0]?.data as Uint8Array | undefined;
-    if (!storeBytes || storeBytes.byteLength === 0) {
-      if (!cachedPdfData || cachedPdfData.byteLength === 0) {
-        message.warning('Sube el PDF primero');
-        return;
-      }
-    }
-
     const canvas = canvasRef.current;
     if (!canvas) {
       message.error('El canvas no está listo');
@@ -499,30 +336,25 @@ function PdfCanvasViewer() {
     try {
       let pdfData = pdfFiles[0]?.data as Uint8Array | undefined;
       console.log('[Editor] applyToPdf - store data:', pdfData?.byteLength ?? 'N/A');
-      console.log('[Editor] applyToPdf - cachedPdfData:', cachedPdfData?.byteLength ?? 'N/A');
       
       if (!pdfData || pdfData.byteLength === 0) {
         pdfData = cachedPdfData as Uint8Array;
-        console.log('[Editor] applyToPdf - fallback to cached, result:', pdfData?.byteLength ?? 'N/A');
+        console.log('[Editor] applyToPdf - using cached data:', pdfData?.byteLength ?? 'N/A');
       }
       
       if (!pdfData || pdfData.byteLength === 0) {
         throw new Error('Los datos del PDF están vacíos. Sube el PDF nuevamente.');
       }
       
-      const bytesForPdfLib = new Uint8Array(pdfData);
-      const header = new Uint8Array(bytesForPdfLib.slice(0, 5));
-      const headerStr = String.fromCharCode.apply(null, Array.from(header));
-      if (!headerStr.startsWith('%PDF')) {
+      if (!isPdfValid(pdfData)) {
         throw new Error('El archivo no es un PDF válido.');
       }
       
       const { PDFDocument } = await import('pdf-lib');
-      
-      const pdfDoc = await PDFDocument.load(bytesForPdfLib);
+      const pdfDoc = await PDFDocument.load(new Uint8Array(pdfData));
       const pages = pdfDoc.getPages();
 
-      // Agrupar overlays por página para aplicar cada uno a su página correspondiente
+      // Agrupar overlays por página
       const overlaysByPage = new Map<number, typeof currentOverlays>();
       for (const overlay of currentOverlays) {
         const pageNum = overlay.page || currentPage;
@@ -536,30 +368,44 @@ function PdfCanvasViewer() {
           console.warn('[Editor] Página inválida:', pageNum);
           continue;
         }
+        
         const page = pages[pageIndex];
-        const pageWidth = page.getWidth();
-        const pageHeight = page.getHeight();
+        const cropBox = page.getCropBox();
+        const cropX = cropBox.x;
+        const cropY = cropBox.y;
+        const pageWidth = cropBox.width;
+        const pageHeight = cropBox.height;
 
         for (const overlay of pageOverlays) {
-          const isPng = overlay.imageData.startsWith('data:image/png');
-          const imageArrayBuffer = dataUrlToArrayBuffer(overlay.imageData);
-          const embeddedImage = isPng
-            ? await pdfDoc.embedPng(imageArrayBuffer)
-            : await pdfDoc.embedJpg(imageArrayBuffer);
+          try {
+            const isPng = overlay.imageData.startsWith('data:image/png');
+            const imageArrayBuffer = dataUrlToArrayBuffer(overlay.imageData);
+            const embeddedImage = isPng
+              ? await pdfDoc.embedPng(imageArrayBuffer)
+              : await pdfDoc.embedJpg(imageArrayBuffer);
 
-          const overlayX = Number(overlay.x) || 0;
-          const overlayY = Number(overlay.y) || 0;
-          const overlayW = Number(overlay.width) || 100;
-          const overlayH = Number(overlay.height) || 50;
+            const overlayX = Number(overlay.x) || 0;
+            const overlayY = Number(overlay.y) || 0;
+            const overlayW = Number(overlay.width) || 100;
+            const overlayH = Number(overlay.height) || 50;
 
-          const scaleX = overlayW / canvas.width;
-          const scaleY = overlayH / canvas.height;
-          const sigWidth = pageWidth * scaleX;
-          const sigHeight = pageHeight * scaleY;
-          const pdfX = (overlayX / canvas.width) * pageWidth;
-          const pdfY = pageHeight - ((overlayY / canvas.height) * pageHeight) - sigHeight;
+            // Mapeo preciso basado en dimensiones visuales vs PDF CropBox
+            const pdfWidth = (overlayW / canvasDim.width) * pageWidth;
+            const pdfHeight = (overlayH / canvasDim.height) * pageHeight;
+            const pdfX = (overlayX / canvasDim.width) * pageWidth + cropX;
+            // PDF usa coordenadas Y desde abajo
+            const pdfY = pageHeight - ((overlayY / canvasDim.height) * pageHeight) - pdfHeight + cropY;
 
-          page.drawImage(embeddedImage, { x: pdfX, y: pdfY, width: sigWidth, height: sigHeight });
+            page.drawImage(embeddedImage, { 
+              x: pdfX, 
+              y: pdfY, 
+              width: pdfWidth, 
+              height: pdfHeight 
+            });
+          } catch (imgErr) {
+            console.error('[Editor] Error processing overlay:', imgErr);
+            message.warning(`Error al procesar un elemento en página ${pageNum}`);
+          }
         }
       }
       
@@ -578,9 +424,11 @@ function PdfCanvasViewer() {
       clearOverlays();
       useAppStore.setState({ pdfFiles: [], currentPdfPath: null });
       
-    } catch (err: any) {
-      console.error('[Editor] Error applying signature:', err);
-      message.error('Error al aplicar firma/sello: ' + (err.message || 'Error desconocido'));
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Error desconocido';
+      console.error('[Editor] Error applying signature:', errorMsg);
+      message.error(`Error al aplicar firma/sello: ${errorMsg}`);
+      setComponentError(`Error: ${errorMsg}`);
     } finally {
       setLoading(false);
     }
@@ -590,34 +438,43 @@ function PdfCanvasViewer() {
     <>
     <Card
       title={
-        <Space>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <span>Vista previa</span>
           {totalPages > 1 && (
-            <Button size="small" onClick={handlePrevPage} disabled={currentPage <= 1}>
-              Anterior
-            </Button>
+            <>
+              <Button size="small" onClick={handlePrevPage} disabled={currentPage <= 1}>
+                Anterior
+              </Button>
+              <span>{currentPage} / {totalPages}</span>
+              <Button size="small" onClick={handleNextPage} disabled={currentPage >= totalPages}>
+                Siguiente
+              </Button>
+            </>
           )}
-          <span>
-            {currentPage} / {totalPages}
-          </span>
-          {totalPages > 1 && (
-            <Button size="small" onClick={handleNextPage} disabled={currentPage >= totalPages}>
-              Siguiente
-            </Button>
-          )}
-        </Space>
+          {totalPages <= 1 && <span style={{ fontSize: 12, color: '#999' }}>(Solo 1 página)</span>}
+        </div>
       }
-extra={
+    extra={
         <Space>
+          <SearchBar
+            onSearch={(_query) => {
+              message.info('Búsqueda en PDF - implementación en fases siguientes');
+            }}
+            onPrevMatch={() => {}}
+            onNextMatch={() => {}}
+            onClear={() => {}}
+            matchCount={0}
+            currentMatchIndex={-1}
+            isSearching={false}
+          />
+
           <Button onClick={() => {
-            loadSavedItems(); 
             setShowSignatureModal(true); 
           }} icon={<FileImageOutlined />}>
             Elegir Firma
           </Button>
-          {useAppStore.getState().overlays.length > 0 && (
+          {overlays.length > 0 && (
             <Button onClick={() => {
-              loadSavedItems(); 
               setShowSignatureModal(true); 
             }} icon={<PlusOutlined />}>
               Agregar otra firma
@@ -625,12 +482,27 @@ extra={
           )}
           <Button type="primary" onClick={() => {
             useAppStore.setState({ isProcessing: true });
-          }}>
+          }} loading={loading}>
             Descargar PDF
           </Button>
         </Space>
       }
     >
+      <Alert
+        message="📋 Instrucciones"
+        description={
+          <div>
+            <p><strong>1.</strong> Usa los botones <strong>"Anterior"</strong> y <strong>"Siguiente"</strong> para navegar a la página donde deseas agregar la firma/sello</p>
+            <p><strong>2.</strong> Click en <strong>"Elegir Firma"</strong> para seleccionar una firma o sello</p>
+            <p><strong>3.</strong> Arrastra la firma/sello para posicionarlo donde desees</p>
+            <p><strong>4.</strong> Usa las esquinas para redimensionar</p>
+            <p><strong>5.</strong> Click en <strong>"Descargar PDF"</strong> para guardar el documento</p>
+          </div>
+        }
+        type="info"
+        showIcon
+        style={{ marginBottom: 16 }}
+      />
       <div data-viewer-apply
         ref={containerRef}
         style={{
@@ -656,135 +528,99 @@ extra={
         {componentError ? (
           <Alert type="error" message={componentError} showIcon />
         ) : (
-          <canvas 
-            ref={canvasRef} 
-            style={{ display: 'block', maxWidth: '100%', height: 'auto' }} 
-          />
-        )}
-        
-       {currentPageOverlays.map((overlay, idx) => (
-           <div
-             key={`overlay-${overlay.imageData.slice(-10)}-${overlay.page}`}
-             onPointerDown={(e) => handlePointerDown(e, idx)}
-            style={{
-              position: 'absolute',
-              zIndex: 10,
-              left: overlay.x,
-              top: overlay.y,
-              width: overlay.width,
-              height: overlay.height,
-              border: (dragState?.overlayIdx === idx) ? '2px solid #1890ff' : '2px dashed #94a3b8',
-              cursor: (dragState?.overlayIdx === idx) ? 'grabbing' : 'grab',
-              background: 'rgba(255,255,255,0.3)',
-              userSelect: 'none',
-            }}
-          >
-            <img
-              src={overlay.imageData}
-              alt="Firma"
-              style={{ width: '100%', height: '100%', objectFit: 'contain', pointerEvents: 'none' }}
+          <div style={{ position: 'relative', display: 'inline-block' }}>
+            <canvas 
+              ref={canvasRef} 
+              style={{ display: 'block', maxWidth: '100%', height: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} 
             />
-            <div
-              style={{
-                position: 'absolute',
-                top: -20,
-                right: 0,
-                background: '#ff4d4f',
-                color: 'white',
-                cursor: 'pointer',
-                padding: '2px 6px',
-                fontSize: 12,
-              }}
-              onClick={(e) => {
-                e.stopPropagation();
-                const allOverlays = useAppStore.getState().overlays;
-                const otherOverlays = allOverlays.filter((_, i) => i !== idx);
-                useAppStore.setState({ overlays: otherOverlays });
-              }}
-            >
-              ✕
-            </div>
-            <div
-              style={{
-                position: 'absolute',
-                bottom: -20,
-                right: 0,
-                width: 20,
-                height: 20,
-                background: '#1890ff',
-                cursor: 'se-resize',
-              }}
-              onPointerDown={(e) => handleResizeStart(e, idx)}
-            />
+            
+            {currentPageOverlays.map((overlay, idx) => (
+              <div
+                key={`overlay-${currentPage}-${idx}`}
+                onPointerDown={(e) => handlePointerDown(e, idx)}
+                style={{
+                  position: 'absolute',
+                  zIndex: 10,
+                  left: overlay.x,
+                  top: overlay.y,
+                  width: overlay.width,
+                  height: overlay.height,
+                  border: (dragState?.overlayIdx === idx) ? '2px solid #1890ff' : '2px dashed #94a3b8',
+                  cursor: (dragState?.overlayIdx === idx) ? 'grabbing' : 'grab',
+                  background: 'rgba(255,255,255,0.3)',
+                  userSelect: 'none',
+                }}
+              >
+                <img
+                  src={overlay.imageData}
+                  alt="Firma"
+                  style={{ width: '100%', height: '100%', objectFit: 'contain', pointerEvents: 'none' }}
+                />
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: -20,
+                    right: 0,
+                    background: '#ff4d4f',
+                    color: 'white',
+                    cursor: 'pointer',
+                    padding: '2px 6px',
+                    fontSize: 12,
+                    borderRadius: 2,
+                    lineHeight: '16px'
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const allOverlays = useAppStore.getState().overlays;
+                    // Encontrar el índice global del overlay actual
+                    const globalIdx = allOverlays.findIndex(o => o.page === currentPage && currentPageOverlays.some((co, i) => co === o && i === idx));
+                    if (globalIdx >= 0) {
+                      const otherOverlays = allOverlays.filter((_, i) => i !== globalIdx);
+                      useAppStore.setState({ overlays: otherOverlays });
+                    }
+                  }}
+                >
+                  ✕
+                </div>
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: -20,
+                    right: 0,
+                    width: 20,
+                    height: 20,
+                    background: '#1890ff',
+                    cursor: 'se-resize',
+                    borderRadius: 2,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'white',
+                    fontSize: 10
+                  }}
+                  onPointerDown={(e) => handleResizeStart(e, idx)}
+                >
+                  ↘
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
+        )}
       </div>
     </Card>
 
-    <Modal
-      title="Seleccionar Firma o Sello"
+    <SignatureModal
       open={showSignatureModal}
-      onCancel={() => setShowSignatureModal(false)}
-      footer={null}
-      width={600}
-    >
-      <Tabs 
-        defaultActiveKey="signatures"
-        items={[
-          {
-            key: 'signatures',
-            label: '📝 Firmas',
-            children: savedSignatures.length === 0 ? (
-              <Empty description="No hay firmas guardadas" />
-            ) : (
-              <List
-                grid={{ gutter: 16, column: 3 }}
-                dataSource={savedSignatures}
-                renderItem={(sig: any) => (
-                  <List.Item>
-                    <div 
-                      onClick={() => handleSelectSignature(sig.dataUrl)}
-                      style={{ border: '1px solid #d9d9d9', borderRadius: 8, padding: 8, cursor: 'pointer', textAlign: 'center' }}
-                    >
-                      <img src={sig.dataUrl} alt={sig.name} style={{ maxWidth: '100%', maxHeight: 80 }} />
-                      <div style={{ marginTop: 4, fontSize: 12 }}>{sig.name}</div>
-                    </div>
-                  </List.Item>
-                )}
-              />
-            ),
-          },
-          {
-            key: 'stamps',
-            label: '🔴 Sellos',
-            children: savedStamps.length === 0 ? (
-              <Empty description="No hay sellos guardados" />
-            ) : (
-              <List
-                grid={{ gutter: 16, column: 3 }}
-                dataSource={savedStamps}
-                renderItem={(stamp: any) => (
-                  <List.Item>
-                    <div 
-                      onClick={() => handleSelectStamp(stamp.dataUrl)}
-                      style={{ border: '1px solid #d9d9d9', borderRadius: 8, padding: 8, cursor: 'pointer', textAlign: 'center' }}
-                    >
-                      <img src={stamp.dataUrl} alt={stamp.name} style={{ maxWidth: '100%', maxHeight: 80 }} />
-                      <div style={{ marginTop: 4, fontSize: 12 }}>{stamp.name}</div>
-                    </div>
-                  </List.Item>
-                )}
-              />
-            ),
-          },
-        ]}
-      />
-    </Modal>
+      onClose={() => setShowSignatureModal(false)}
+      onSelectSignature={handleSelectSignature}
+      onSelectStamp={handleSelectStamp}
+    />
     </>
   );
 }
 
 export function PdfEditorPage() {
+  const overlays = useAppStore(state => state.overlays);
   const { error, orderedPages, currentPdfPath } = useAppStore();
   
   return (
@@ -800,7 +636,7 @@ export function PdfEditorPage() {
         }}
       >
         <Title level={4} style={{ margin: 0 }}>
-          {useAppStore.getState().overlays.length > 0 ? 'Posicionar Firma/Sello' : 'Editor PDF - Unir y reordenar páginas'}
+          {overlays.length > 0 ? 'Posicionar Firma/Sello' : 'Editor PDF - Unir y reordenar páginas'}
         </Title>
         <Space>
           {currentPdfPath && (
@@ -823,25 +659,33 @@ export function PdfEditorPage() {
           />
         )}
 
-        {useAppStore.getState().overlays.length > 0 ? (
+        {overlays.length > 0 ? (
           <PdfCanvasViewer />
         ) : (
           <>
             <Card
-              title="Subir archivos PDF"
+              title="📄 Subir archivos PDF"
               style={{ marginBottom: 16 }}
-              extra={<span style={{ color: '#999' }}>Arrastra múltiples PDFs</span>}
+              extra={<span style={{ color: '#999' }}>Arrastra múltiples PDFs para unir</span>}
             >
               <FileDropzone />
             </Card>
 
             {orderedPages.length > 0 && (
               <Card
-                title="Páginas PDF"
+                title="📑 Páginas del PDF"
                 extra={
-                  <span style={{ color: '#999' }}>
-                    Arrastra para reordenar
-                  </span>
+                  <Space>
+                    <span style={{ color: '#999' }}>Arrastra para reordenar</span>
+                    <Button 
+                      type="primary" 
+                      onClick={() => {
+                        useAppStore.setState({ isProcessing: true });
+                      }}
+                    >
+                      Unir PDFs
+                    </Button>
+                  </Space>
                 }
               >
                 <Toolbar />

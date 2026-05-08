@@ -29,4 +29,24 @@ export interface PdfInfo {
   file_index: number;
 }
 
-export type AppModule = 'pdf-editor' | 'converter' | 'watermark' | 'signatures' | 'stamps' | 'html-to-image' | 'pdf-tools';
+export type AppModule = 
+  | 'dashboard'
+  | 'pdf-editor'
+  | 'converter'
+  | 'watermark'
+  | 'signatures'
+  | 'stamps'
+  | 'html-to-image'
+  | 'pdf-tools'
+  | 'ocr'
+  | 'annotations'
+  | 'forms'
+  | 'digital-signature'
+  | 'compare'
+  | 'image-extractor'
+  | 'metadata'
+  | 'redact'
+  | 'compliance'
+  | 'templates'
+  | 'batch'
+  | 'asset-positioner';

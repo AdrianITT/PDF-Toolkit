@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Card, Row, Col, Button, Upload, Input, List, Modal, message, Space, Empty, Spin } from 'antd';
+import { Card, Row, Col, Button, Upload, Input, List, Modal, message, Space, Empty, Typography, Alert } from 'antd';
 import { PlusOutlined, UploadOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useAppStore } from '../../stores/appStore';
+
+const { Title, Paragraph } = Typography;
 
 interface Stamp {
   id: string;
@@ -112,7 +114,6 @@ export function StampsPage() {
   const [newStampName, setNewStampName] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('custom');
   const [previewStamp, setPreviewStamp] = useState<string | null>(null);
-  const [isLoadingPdf, setIsLoadingPdf] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem('savedStamps');
@@ -163,66 +164,20 @@ export function StampsPage() {
     });
   };
 
-const applyStamp = async (stamp: Stamp) => {
+const applyStamp = (stamp: Stamp) => {
     console.log('[Sellos] Seleccionando sello:', stamp.name);
-
-    // Crear un input file manualmente para seleccionar PDF
-    const fileInput = document.createElement('input');
-    fileInput.type = 'file';
-    fileInput.accept = '.pdf';
-
-    fileInput.onchange = async (e: any) => {
-      const file = e.target.files?.[0];
-      if (!file) {
-        message.warning('No se seleccionó archivo');
-        return;
-      }
-
-      setIsLoadingPdf(true);
-      try {
-        console.log('[Sellos] Archivo seleccionado:', file.name);
-        const buffer = await file.arrayBuffer();
-        const pdfData = new Uint8Array(buffer);
-
-        const pdfFile = {
-          id: `imported-${Date.now()}`,
-          name: file.name,
-          data: pdfData,
-          pageCount: 1,
-          pages: [],
-        };
-
-        const newOverlay = {
-          x: 100,
-          y: 100,
-          width: 150,
-          height: 150,
-          page: 1,
-          imageData: stamp.dataUrl,
-          type: 'sello' as const,
-        };
-
-        const currentOverlays = useAppStore.getState().overlays;
-        
-        useAppStore.setState({
-          pdfFiles: [pdfFile],
-          orderedPages: [],
-          overlays: [...currentOverlays, newOverlay],
-          currentPdfPath: '',
-        });
-
-        console.log('[Sellos] Navegando a Editor PDF');
-        useAppStore.getState().setActiveModule('pdf-editor');
-        message.success(`Sello "${stamp.name}" listo. Arrastra para posicionar en el PDF.`);
-      } catch (err) {
-        console.error('[Sellos] Error al cargar PDF:', err);
-        message.error('Error al cargar el PDF');
-      } finally {
-        setIsLoadingPdf(false);
-      }
-    };
-
-    fileInput.click();
+    
+    // Guardar el sello seleccionado y navegar al posicionador
+    useAppStore.setState({
+      pdfFiles: [],
+      orderedPages: [],
+      overlays: [],
+      currentPdfPath: null,
+      selectedAsset: { type: 'sello', dataUrl: stamp.dataUrl, name: stamp.name },
+    });
+    
+    useAppStore.getState().setActiveModule('asset-positioner');
+    message.info(`Sello "${stamp.name}" seleccionado. Sube un PDF para posicionar el sello.`);
   };
 
   const exportStamps = () => {
@@ -256,23 +211,15 @@ const applyStamp = async (stamp: Stamp) => {
     reader.readAsText(file);
   };
 
-  const copyToClipboard = async (dataUrl: string) => {
-    try {
-      const response = await fetch(dataUrl);
-      const blob = await response.blob();
-      await navigator.clipboard.write([
-        new ClipboardItem({ [blob.type]: blob }),
-      ]);
-      message.success('Imagen copiada');
-    } catch {
-      message.info('Copia no soportada en este navegador');
-    }
-  };
-
   return (
-    <Card
-      title="Módulo de Sellos"
-      extra={
+    <div style={{ maxWidth: 1200, margin: '0 auto', padding: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <div>
+          <Title level={2} style={{ margin: 0 }}>🔴 Sellos</Title>
+          <Paragraph style={{ margin: 0 }}>
+            Crea y gestiona sellos personalizados para agregar a tus documentos PDF.
+          </Paragraph>
+        </div>
         <Space>
           <Upload
             accept=".json"
@@ -286,17 +233,11 @@ const applyStamp = async (stamp: Stamp) => {
           </Upload>
           <Button onClick={exportStamps}>Exportar</Button>
         </Space>
-      }
-    >
-      {isLoadingPdf && (
-        <div style={{ textAlign: 'center', padding: 20 }}>
-          <Spin size="large" />
-          <p style={{ marginTop: 8, color: '#1890ff' }}>Cargando PDF...</p>
-        </div>
-      )}
-      <Row gutter={[16, 16]}>
-        <Col span={12}>
-          <Card title="Crear Sello" size="small">
+      </div>
+
+      <Row gutter={[24, 24]}>
+        <Col xs={24} lg={12}>
+          <Card title="🖨️ Crear Sello" style={{ marginBottom: 24 }}>
             <Input
               placeholder="Nombre del sello"
               value={newStampName}
@@ -335,6 +276,9 @@ const applyStamp = async (stamp: Stamp) => {
                 <Button onClick={() => createStamp('confidential')}>
                   Confidencial
                 </Button>
+                <Button onClick={() => createStamp('urgent')}>
+                  Urgente
+                </Button>
               </Space>
             </div>
 
@@ -344,16 +288,14 @@ const applyStamp = async (stamp: Stamp) => {
                 onClick={() => setIsModalOpen(true)}
                 disabled={!newStampName.trim()}
               >
-                Crear sello personalizado
+                Subir sello personalizado (PNG)
               </Button>
             </div>
           </Card>
-        </Col>
-
-        <Col span={12}>
-          <Card title="Vista Previa" size="small">
+          
+          <Card title="👁️ Vista Previa">
             {previewStamp ? (
-              <div style={{ textAlign: 'center' }}>
+              <div style={{ textAlign: 'center', padding: 20, background: '#f5f5f5', borderRadius: 8 }}>
                 <img
                   src={previewStamp}
                   alt="Preview"
@@ -365,63 +307,85 @@ const applyStamp = async (stamp: Stamp) => {
             )}
           </Card>
         </Col>
-      </Row>
-
-      <Card title="Sellos Guardados" style={{ marginTop: 16 }}>
-        {stamps.length === 0 ? (
-          <Empty description="No hay sellos guardados" />
-        ) : (
-          stamps.map((stamp) => (
-            <List.Item
-              key={stamp.id}
-              actions={[
-                <Button
-                  key="apply"
-                  type="primary"
-                  onClick={() => applyStamp(stamp)}
-                >
-                  Aplicar
-                </Button>,
-                <Button
-                  key="preview"
-                  type="link"
-                  onClick={() => setPreviewStamp(stamp.dataUrl)}
-                >
-                  Ver
-                </Button>,
-                <Button
-                  key="copy"
-                  type="link"
-                  onClick={() => copyToClipboard(stamp.dataUrl)}
-                >
-                  Copiar
-                </Button>,
-                <Button
-                  key="delete"
-                  danger
-                  type="link"
-                  icon={<DeleteOutlined />}
-                  onClick={() => deleteStamp(stamp.id)}
-                />,
-              ]}
-            >
-              <List.Item.Meta
-                avatar={
-                  <img
-                    src={stamp.dataUrl}
-                    alt={stamp.name}
-                    style={{ width: 60, height: 60, objectFit: 'contain' }}
-                  />
-                }
-                title={stamp.name}
-                description={
-                  categories.find((c) => c.id === stamp.category)?.name || stamp.category
-                }
+        
+        <Col xs={24} lg={12}>
+          <Card 
+            title="📋 Sellos Guardados" 
+            extra={<span style={{ color: '#999' }}>{stamps.length} sello(s)</span>}
+          >
+            {stamps.length === 0 ? (
+              <Empty description="No hay sellos guardados. Crea uno arriba." />
+            ) : (
+              <List
+                dataSource={stamps}
+                renderItem={(stamp) => (
+                  <List.Item
+                    actions={[
+                      <Button
+                        key="apply"
+                        type="primary"
+                        onClick={() => applyStamp(stamp)}
+                      >
+                        Usar en PDF
+                      </Button>,
+                      <Button
+                        key="preview"
+                        type="link"
+                        onClick={() => setPreviewStamp(stamp.dataUrl)}
+                      >
+                        Ver
+                      </Button>,
+                      <Button
+                        key="delete"
+                        danger
+                        type="link"
+                        icon={<DeleteOutlined />}
+                        onClick={() => deleteStamp(stamp.id)}
+                      />,
+                    ]}
+                  >
+                    <List.Item.Meta
+                      avatar={
+                        <div style={{ 
+                          border: '1px solid #d9d9d9', 
+                          borderRadius: 8, 
+                          padding: 4,
+                          background: '#fff'
+                        }}>
+                          <img
+                            src={stamp.dataUrl}
+                            alt={stamp.name}
+                            style={{ width: 60, height: 60, objectFit: 'contain' }}
+                          />
+                        </div>
+                      }
+                      title={stamp.name}
+                      description={
+                        categories.find((c) => c.id === stamp.category)?.name || stamp.category
+                      }
+                    />
+                  </List.Item>
+                )}
               />
-            </List.Item>
-          ))
-        )}
-      </Card>
+            )}
+          </Card>
+          
+          <Alert
+            message="💡 Cómo usar"
+            description={
+              <div>
+                <p>1. Crea un sello o selecciona uno de los predefinidos</p>
+                <p>2. Click en <strong>"Usar en PDF"</strong></p>
+                <p>3. Se abrirá el Editor donde puedes subir tu PDF</p>
+                <p>4. Navega a la página deseada y posiciona el sello</p>
+              </div>
+            }
+            type="info"
+            showIcon
+            style={{ marginTop: 24 }}
+          />
+        </Col>
+      </Row>
 
       <Modal
         title="Subir Sello Personalizado"
@@ -430,7 +394,7 @@ const applyStamp = async (stamp: Stamp) => {
         footer={null}
       >
         <Upload
-          accept="image/*"
+          accept="image/png,image/jpeg,image/jpg"
           showUploadList={false}
           beforeUpload={(file) => {
             const reader = new FileReader();
@@ -444,15 +408,25 @@ const applyStamp = async (stamp: Stamp) => {
                 createdAt: Date.now(),
               };
               saveStamps([...stamps, newStamp]);
-              message.success('Sello subido');
+              message.success('Sello subido correctamente');
             };
             reader.readAsDataURL(file);
             setIsModalOpen(false);
           }}
         >
-          <Button icon={<UploadOutlined />}>Subir imagen de sello</Button>
+          <div style={{ 
+            border: '2px dashed #d9d9d9', 
+            borderRadius: 8, 
+            padding: 40, 
+            textAlign: 'center',
+            cursor: 'pointer'
+          }}>
+            <p><UploadOutlined style={{ fontSize: 32, color: '#1890ff' }} /></p>
+            <p>Click para subir imagen</p>
+            <p style={{ color: '#999', fontSize: 12 }}>Recomendado: PNG con transparencia</p>
+          </div>
         </Upload>
       </Modal>
-    </Card>
+    </div>
   );
 }

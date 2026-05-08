@@ -15,6 +15,9 @@ pub fn run() {
             commands::pdf_tools::protect_pdf,
             commands::pdf_tools::delete_pages,
             commands::pdf_tools::split_pdf,
+            commands::signature::parse_certificate,
+            commands::signature::sign_document_hash,
+            commands::signature::get_certificate_public_key,
         ])
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())

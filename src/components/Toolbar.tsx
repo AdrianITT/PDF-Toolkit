@@ -5,6 +5,16 @@ import { mergePdfs, downloadPdf } from '../services/pdf.service';
 import type { PageRef, PdfFile } from '../types';
 import { useState } from 'react';
 
+type TauriApi = typeof import('@tauri-apps/api');
+let tauriApi: TauriApi | null = null;
+
+async function getTauriInvoke() {
+  if (!tauriApi) {
+    tauriApi = await import('@tauri-apps/api');
+  }
+  return tauriApi.core.invoke;
+}
+
 export function Toolbar() {
   const store = useAppStore();
   
@@ -57,7 +67,7 @@ export function Toolbar() {
 
     setIsProcessing(true);
     try {
-      const { invoke } = await import('@tauri-apps/api/core');
+      const invoke = await getTauriInvoke();
       const result = await invoke<number[]>('compress_pdf', {
         fileData: Array.from(pdfData),
         quality: compressQuality / 100
@@ -94,7 +104,7 @@ export function Toolbar() {
 
     setIsProcessing(true);
     try {
-      const { invoke } = await import('@tauri-apps/api/core');
+      const invoke = await getTauriInvoke();
       const result = await invoke<number[]>('rotate_pages', {
         request: {
           file_data: Array.from(pdfData),
@@ -129,7 +139,7 @@ export function Toolbar() {
 
     setIsProcessing(true);
     try {
-      const { invoke } = await import('@tauri-apps/api/core');
+      const invoke = await getTauriInvoke();
       const ranges = splitRanges.split(',').map(r => r.trim());
       const results = await invoke<number[][]>('split_pdf', {
         request: {

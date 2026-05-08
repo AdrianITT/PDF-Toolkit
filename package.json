@@ -8,6 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "tauri": "tauri",
     "tauri:build:app": "tauri build --bundles app"
   },
@@ -16,10 +18,13 @@
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
-    "@tauri-apps/api": "^2.10.1",
+    "@tauri-apps/api": "^2.11.0",
     "@tauri-apps/plugin-dialog": "^2.7.0",
     "@tauri-apps/plugin-fs": "^2.5.0",
+    "@types/dompurify": "^3.0.5",
+    "@types/tesseract.js": "^0.0.2",
     "antd": "^6.3.6",
+    "dompurify": "^3.4.2",
     "file-saver": "^2.0.5",
     "html-to-image": "^1.11.13",
     "html2canvas": "^1.4.1",
@@ -31,19 +36,24 @@
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "react-dropzone": "^15.0.0",
+    "tesseract.js": "^7.0.0",
     "xlsx": "^0.18.5",
     "zustand": "^5.0.12"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.11.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/file-saver": "^2.0.7",
     "@types/html2canvas": "^0.5.35",
     "@types/node": "^24.12.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^4.3.0",
+    "jsdom": "^29.1.1",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.58.2",
-    "vite": "^5.4.0"
+    "vite": "^5.4.0",
+    "vitest": "^4.1.5"
   }
 }

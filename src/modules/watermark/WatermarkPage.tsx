@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Card, Input, Row, Col, Button, Upload, message, Slider, Radio, Space, Tooltip, InputNumber } from 'antd';
 import { DownloadOutlined, UploadOutlined } from '@ant-design/icons';
 import { PDFDocument, rgb, degrees } from 'pdf-lib';
+import { loadPdf } from '../../utils/pdfjs';
 
 interface WatermarkConfig {
   type: 'text' | 'image';
@@ -104,18 +105,8 @@ export function WatermarkPage() {
 
   const generatePdfThumbnail = async (pdfData: Uint8Array): Promise<string> => {
     try {
-      const pdfDataCopy = new Uint8Array(pdfData.length);
-      pdfDataCopy.set(pdfData);
-      
-      const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
-      pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-        'pdfjs-dist/legacy/build/pdf.worker.min.mjs',
-        import.meta.url
-      ).toString();
-      
-      const pdfDoc = await pdfjsLib.getDocument({ data: pdfDataCopy }).promise;
-      const page = await pdfDoc.getPage(1);
-      
+      const { doc } = await loadPdf(pdfData);
+      const page = await doc.getPage(1);
       const viewport = page.getViewport({ scale: 0.5 });
       const canvas = document.createElement('canvas');
       const context = canvas.getContext('2d');
@@ -186,12 +177,17 @@ export function WatermarkPage() {
     const color = rgb(rgbColor.r / 255, rgbColor.g / 255, rgbColor.b / 255);
     
     for (const page of pagesToProcess) {
-      const { width, height } = page.getSize();
-      const pos = getPositionCoords(config.position, width, height, config.fontSize, config.text.length);
+      const cropBox = page.getCropBox();
+      const cropX = cropBox.x;
+      const cropY = cropBox.y;
+      const pageWidth = cropBox.width;
+      const pageHeight = cropBox.height;
+
+      const pos = getPositionCoords(config.position, pageWidth, pageHeight, config.fontSize, config.text.length);
       
       page.drawText(config.text, {
-        x: pos.x,
-        y: pos.y,
+        x: pos.x + cropX,
+        y: pos.y + cropY,
         size: config.fontSize,
         color,
         opacity: config.opacity / 100,
@@ -228,12 +224,17 @@ export function WatermarkPage() {
     const imgDims = image.scale(scale);
     
     for (const page of pagesToProcess) {
-      const { width, height } = page.getSize();
-      const pos = getImagePositionCoords(config.position, width, height, imgDims.width, imgDims.height);
+      const cropBox = page.getCropBox();
+      const cropX = cropBox.x;
+      const cropY = cropBox.y;
+      const pageWidth = cropBox.width;
+      const pageHeight = cropBox.height;
+
+      const pos = getImagePositionCoords(config.position, pageWidth, pageHeight, imgDims.width, imgDims.height);
       
       page.drawImage(image, {
-        x: pos.x,
-        y: pos.y,
+        x: pos.x + cropX,
+        y: pos.y + cropY,
         width: imgDims.width,
         height: imgDims.height,
         opacity: config.opacity / 100,
@@ -500,24 +501,45 @@ export function WatermarkPage() {
                 }} 
               />
               {/* Watermark overlay - positioned absolutely over the PDF */}
-              <div
-                style={{
-                  position: 'absolute',
-                  fontSize: Math.max(16, config.fontSize * 1.5),
-                  color: config.color,
-                  opacity: config.opacity / 100,
-                  transform: `rotate(${config.rotation}deg) ${getPreviewPosition(config.position).transform || ''}`,
-                  whiteSpace: 'nowrap',
-                  fontWeight: 'bold',
-                  left: getPreviewPosition(config.position).x,
-                  top: getPreviewPosition(config.position).y,
-                  textShadow: '2px 2px 4px rgba(0,0,0,0.3)',
-                  pointerEvents: 'none',
-                  zIndex: 10,
-                }}
-              >
-                {config.text}
-              </div>
+              {config.type === 'text' ? (
+                <div
+                  style={{
+                    position: 'absolute',
+                    fontSize: Math.max(10, config.fontSize * 0.35), // Escala más realista para el contenedor de previsualización
+                    color: config.color,
+                    opacity: config.opacity / 100,
+                    transform: `rotate(${config.rotation}deg) ${getPreviewPosition(config.position).transform || ''}`,
+                    whiteSpace: 'nowrap',
+                    fontWeight: 'bold',
+                    left: getPreviewPosition(config.position).x,
+                    top: getPreviewPosition(config.position).y,
+                    textShadow: '1px 1px 2px rgba(0,0,0,0.1)',
+                    pointerEvents: 'none',
+                    zIndex: 10,
+                  }}
+                >
+                  {config.text}
+                </div>
+              ) : imageFile && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: getPreviewPosition(config.position).x,
+                    top: getPreviewPosition(config.position).y,
+                    transform: `rotate(${config.rotation}deg) ${getPreviewPosition(config.position).transform || ''}`,
+                    opacity: config.opacity / 100,
+                    width: `${config.imageScale * 0.4}%`, // Ajuste de escala para imagen en preview
+                    pointerEvents: 'none',
+                    zIndex: 10,
+                  }}
+                >
+                  <img 
+                    src={URL.createObjectURL(new Blob([imageFile.data as any]))} 
+                    alt="Watermark Image" 
+                    style={{ width: '100%', height: 'auto' }} 
+                  />
+                </div>
+              )}
             </div>
           ) : (
             <>
@@ -538,55 +560,46 @@ export function WatermarkPage() {
                 borderRadius: 2,
                 opacity: 0.4,
               }} />
-              <div style={{
-                position: 'absolute',
-                top: 50,
-                left: 20,
-                right: 40,
-                height: 8,
-                background: '#e0e0e0',
-                borderRadius: 2,
-                opacity: 0.4,
-              }} />
-              <div style={{
-                position: 'absolute',
-                top: 70,
-                left: 20,
-                right: 60,
-                height: 8,
-                background: '#e0e0e0',
-                borderRadius: 2,
-                opacity: 0.4,
-              }} />
-              <div style={{
-                position: 'absolute',
-                top: 90,
-                left: 20,
-                right: 30,
-                height: 8,
-                background: '#e0e0e0',
-                borderRadius: 2,
-                opacity: 0.4,
-              }} />
               {/* Watermark - same as PDF preview */}
-              <div
-                style={{
-                  position: 'absolute',
-                  fontSize: Math.max(16, config.fontSize * 1.5),
-                  color: config.color,
-                  opacity: config.opacity / 100,
-                  transform: `rotate(${config.rotation}deg) ${getPreviewPosition(config.position).transform || ''}`,
-                  whiteSpace: 'nowrap',
-                  fontWeight: 'bold',
-                  left: getPreviewPosition(config.position).x,
-                  top: getPreviewPosition(config.position).y,
-                  textShadow: '2px 2px 4px rgba(0,0,0,0.3)',
-                  pointerEvents: 'none',
-                  zIndex: 10,
-                }}
-              >
-                {config.text}
-              </div>
+              {config.type === 'text' ? (
+                <div
+                  style={{
+                    position: 'absolute',
+                    fontSize: Math.max(10, config.fontSize * 0.35),
+                    color: config.color,
+                    opacity: config.opacity / 100,
+                    transform: `rotate(${config.rotation}deg) ${getPreviewPosition(config.position).transform || ''}`,
+                    whiteSpace: 'nowrap',
+                    fontWeight: 'bold',
+                    left: getPreviewPosition(config.position).x,
+                    top: getPreviewPosition(config.position).y,
+                    textShadow: '1px 1px 2px rgba(0,0,0,0.1)',
+                    pointerEvents: 'none',
+                    zIndex: 10,
+                  }}
+                >
+                  {config.text}
+                </div>
+              ) : imageFile && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: getPreviewPosition(config.position).x,
+                    top: getPreviewPosition(config.position).y,
+                    transform: `rotate(${config.rotation}deg) ${getPreviewPosition(config.position).transform || ''}`,
+                    opacity: config.opacity / 100,
+                    width: `${config.imageScale * 0.35}%`,
+                    pointerEvents: 'none',
+                    zIndex: 10,
+                  }}
+                >
+                  <img 
+                    src={URL.createObjectURL(new Blob([imageFile.data as any]))} 
+                    alt="Watermark Image" 
+                    style={{ width: '100%', height: 'auto' }} 
+                  />
+                </div>
+              )}
             </>
           )}
         </div>

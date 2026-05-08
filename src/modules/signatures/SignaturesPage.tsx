@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
-import { Card, Button, Row, Col, Input, Upload, List, message, Space, Empty, Spin } from 'antd';
+import { Card, Button, Row, Col, Input, Upload, List, message, Space, Empty, Typography, Alert } from 'antd';
 import { DeleteOutlined, SaveOutlined, ClearOutlined, UploadOutlined } from '@ant-design/icons';
 import { useAppStore } from '../../stores/appStore';
+
+const { Title, Paragraph } = Typography;
 
 interface Signature {
   id: string;
@@ -126,50 +128,6 @@ export function SignatureCanvas({ onSave }: { onSave: (dataUrl: string, name: st
   );
 }
 
-function SignaturesManager({ signatures, onSelect, onDelete }: {
-  signatures: Signature[];
-  onSelect: (sig: Signature) => void;
-  onDelete: (id: string) => void;
-}) {
-  return (
-    <Card title="Firmas Guardadas" size="small">
-      {signatures.length === 0 ? (
-        <Empty description="No hay firmas guardadas" />
-      ) : (
-        <List
-          dataSource={signatures}
-          renderItem={(sig) => (
-            <List.Item
-              actions={[
-                <Button key="select" onClick={() => onSelect(sig)}>
-                  Usar
-                </Button>,
-                <Button
-                  key="delete"
-                  danger
-                  icon={<DeleteOutlined />}
-                  onClick={() => onDelete(sig.id)}
-                />,
-              ]}
-            >
-              <List.Item.Meta
-                title={sig.name}
-                avatar={
-                  <img
-                    src={sig.dataUrl}
-                    alt={sig.name}
-                    style={{ width: 80, height: 40, objectFit: 'contain' }}
-                  />
-                }
-              />
-            </List.Item>
-          )}
-        />
-      )}
-    </Card>
-  );
-}
-
 export function SignatureUpload({ onUpload }: { onUpload: (dataUrl: string, name: string) => void }) {
   const [name, setName] = useState('');
 
@@ -195,19 +153,21 @@ export function SignatureUpload({ onUpload }: { onUpload: (dataUrl: string, name
         style={{ marginBottom: 8 }}
       />
       <Upload
-        accept="image/*"
+        accept="image/png,image/jpeg,image/jpg"
         showUploadList={false}
         beforeUpload={handleFile}
       >
-        <Button icon={<UploadOutlined />}>Subir imagen de firma</Button>
+        <Button icon={<UploadOutlined />}>Subir imagen (PNG/JPG)</Button>
       </Upload>
+      <Paragraph style={{ marginTop: 8, fontSize: 12, color: '#999' }}>
+        Formatos recomendados: PNG con transparencia para mejor calidad
+      </Paragraph>
     </Card>
   );
 }
 
 export function SignaturesPage() {
   const [signatures, setSignatures] = useState<Signature[]>([]);
-  const [isLoadingPdf, setIsLoadingPdf] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem('savedSignatures');
@@ -236,91 +196,104 @@ export function SignaturesPage() {
     message.success('Firma eliminada');
   };
 
-  const selectSignature = async (sig: Signature) => {
+  const selectSignature = (sig: Signature) => {
     console.log('[Firmas] Seleccionando firma:', sig.name);
-
-    // Crear un input file manualmente para seleccionar PDF
-    const fileInput = document.createElement('input');
-    fileInput.type = 'file';
-    fileInput.accept = '.pdf';
-
-    fileInput.onchange = async (e: any) => {
-      const file = e.target.files?.[0];
-      if (!file) {
-        message.warning('No se seleccionó archivo');
-        return;
-      }
-
-      setIsLoadingPdf(true);
-      try {
-        console.log('[Firmas] Archivo seleccionado:', file.name);
-        const buffer = await file.arrayBuffer();
-        const pdfData = new Uint8Array(buffer);
-
-        const pdfFile = {
-          id: `imported-${Date.now()}`,
-          name: file.name,
-          data: pdfData,
-          pageCount: 1,
-          pages: [],
-        };
-
-        const newOverlay = {
-          x: 100,
-          y: 100,
-          width: 150,
-          height: 75,
-          page: 1,
-          imageData: sig.dataUrl,
-          type: 'firma' as const,
-        };
-
-        const currentOverlays = useAppStore.getState().overlays;
-        
-        useAppStore.setState({
-          pdfFiles: [pdfFile],
-          orderedPages: [],
-          overlays: [...currentOverlays, newOverlay],
-          currentPdfPath: '',
-        });
-
-        console.log('[Firmas] Navegando a Editor PDF');
-        useAppStore.getState().setActiveModule('pdf-editor');
-        message.success(`Firma "${sig.name}" lista. Arrastra para posicionar en el PDF.`);
-      } catch (err) {
-        console.error('[Firmas] Error al cargar PDF:', err);
-        message.error('Error al cargar el PDF');
-      } finally {
-        setIsLoadingPdf(false);
-      }
-    };
-
-    fileInput.click();
+    
+    // Guardar la firma seleccionada y navegar al posicionador
+    useAppStore.setState({
+      pdfFiles: [],
+      orderedPages: [],
+      overlays: [],
+      currentPdfPath: null,
+      selectedAsset: { type: 'firma', dataUrl: sig.dataUrl, name: sig.name },
+    });
+    
+    useAppStore.getState().setActiveModule('asset-positioner');
+    message.info(`Firma "${sig.name}" seleccionada. Sube un PDF para posicionar la firma.`);
   };
 
   return (
-    <Card title="Gestión de Firmas">
-      {isLoadingPdf && (
-        <div style={{ textAlign: 'center', padding: 20 }}>
-          <Spin size="large" />
-          <p style={{ marginTop: 8, color: '#1890ff' }}>Cargando PDF...</p>
-        </div>
-      )}
-      <Row gutter={[16, 16]}>
-        <Col span={12}>
-          <SignatureCanvas onSave={saveSignature} />
-          <div style={{ marginTop: 16 }}>
+    <div style={{ maxWidth: 1200, margin: '0 auto', padding: 24 }}>
+      <Title level={2} style={{ marginBottom: 8 }}>✍️ Firmas Digitales</Title>
+      <Paragraph style={{ marginBottom: 24 }}>
+        Crea, guarda y gestiona tus firmas digitales. Luego úsalas para firmar tus documentos PDF.
+      </Paragraph>
+
+      <Row gutter={[24, 24]}>
+        <Col xs={24} lg={12}>
+          <Card title="🖌️ Crear Nueva Firma" style={{ marginBottom: 24 }}>
+            <SignatureCanvas onSave={saveSignature} />
+          </Card>
+          
+          <Card title="📁 Importar Firma" extra={<span style={{ color: '#999' }}>PNG con transparencia</span>}>
             <SignatureUpload onUpload={saveSignature} />
-          </div>
+          </Card>
         </Col>
-        <Col span={12}>
-          <SignaturesManager
-            signatures={signatures}
-            onSelect={selectSignature}
-            onDelete={deleteSignature}
+        
+        <Col xs={24} lg={12}>
+          <Card 
+            title="📋 Firmas Guardadas" 
+            extra={<span style={{ color: '#999' }}>{signatures.length} firma(s)</span>}
+          >
+            {signatures.length === 0 ? (
+              <Empty description="No hay firmas guardadas. Crea una firma arriba." />
+            ) : (
+              <List
+                dataSource={signatures}
+                renderItem={(sig) => (
+                  <List.Item
+                    actions={[
+                      <Button key="select" type="primary" onClick={() => selectSignature(sig)}>
+                        Usar en PDF
+                      </Button>,
+                      <Button
+                        key="delete"
+                        danger
+                        icon={<DeleteOutlined />}
+                        onClick={() => deleteSignature(sig.id)}
+                      />,
+                    ]}
+                  >
+                    <List.Item.Meta
+                      avatar={
+                        <div style={{ 
+                          border: '1px solid #d9d9d9', 
+                          borderRadius: 8, 
+                          padding: 4,
+                          background: '#fff'
+                        }}>
+                          <img
+                            src={sig.dataUrl}
+                            alt={sig.name}
+                            style={{ width: 100, height: 50, objectFit: 'contain', background: 'url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAAXNSR0IArs4c6QAAABNJREFUGFdjZEACjEBlIGLUAAC8GgL4wL/XYQAAAABJRU5ErkJggg==)' }}
+                          />
+                        </div>
+                      }
+                      title={sig.name}
+                      description={`ID: ${sig.id}`}
+                    />
+                  </List.Item>
+                )}
+              />
+            )}
+          </Card>
+          
+          <Alert
+            message="💡 Cómo usar"
+            description={
+              <div>
+                <p>1. Crea o importa una firma (recomendado PNG con transparencia)</p>
+                <p>2. Click en <strong>"Usar en PDF"</strong></p>
+                <p>3. Se abrirá el Editor donde puedes subir tu PDF</p>
+                <p>4. Navega a la página deseada y posiciona la firma</p>
+              </div>
+            }
+            type="info"
+            showIcon
+            style={{ marginTop: 24 }}
           />
         </Col>
       </Row>
-    </Card>
+    </div>
   );
 }

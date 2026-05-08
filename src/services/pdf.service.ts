@@ -80,7 +80,7 @@ async function getPdfService(): Promise<MockPdfService> {
   if (service) return service;
   
   try {
-    const { invoke } = await import('@tauri-apps/api/core');
+    const { invoke } = (await import('@tauri-apps/api')).core;
     await invoke('get_pdf_info', { fileData: [], fileIndex: 0 });
     
     service = {
@@ -88,7 +88,7 @@ async function getPdfService(): Promise<MockPdfService> {
         return invoke('get_pdf_info', { fileData: Array.from(fileData), fileIndex });
       },
       async mergePdfs(request: PdfMergeRequest): Promise<Uint8Array> {
-        const { invoke } = await import('@tauri-apps/api/core');
+        const { invoke } = (await import('@tauri-apps/api')).core;
         const result = await invoke<number[]>('merge_pdfs', {
           request: {
             files: request.files.map(f => Array.from(f)),
@@ -98,7 +98,7 @@ async function getPdfService(): Promise<MockPdfService> {
         return new Uint8Array(result);
       },
       async extractPages(fileData: Uint8Array, pagesToKeep: number[]): Promise<Uint8Array> {
-        const { invoke } = await import('@tauri-apps/api/core');
+        const { invoke } = (await import('@tauri-apps/api')).core;
         const result = await invoke<number[]>('extract_pages', {
           fileData: Array.from(fileData),
           pagesToKeep,

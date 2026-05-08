@@ -11,6 +11,7 @@ import {
   FilePptOutlined
 } from '@ant-design/icons';
 import { jsPDF } from 'jspdf';
+import type { ReactNode } from 'react';
 
 if (typeof (Promise as any).withResolvers !== 'function') {
   (Promise as any).withResolvers = function<T>() {
@@ -34,11 +35,19 @@ interface ConvertFile {
   outputUrl?: string;
   error?: string;
   progress: number;
+  progressMessage?: string;
 }
 
 type ConversionMode = 'docx-pdf' | 'xlsx-pdf' | 'pptx-pdf' | 'pdf-images' | 'pdf-docx';
 
-const CONVERSION_OPTIONS: { value: ConversionMode; label: string; icon: any; extensions: string[] }[] = [
+interface ConversionOption {
+  value: ConversionMode;
+  label: string;
+  icon: ReactNode;
+  extensions: string[];
+}
+
+const CONVERSION_OPTIONS: ConversionOption[] = [
   { value: 'docx-pdf', label: 'Word → PDF', icon: <FileWordOutlined />, extensions: ['.docx'] },
   { value: 'xlsx-pdf', label: 'Excel → PDF', icon: <FileExcelOutlined />, extensions: ['.xlsx'] },
   { value: 'pptx-pdf', label: 'PowerPoint → PDF', icon: <FilePptOutlined />, extensions: ['.pptx', '.pptx'] },
@@ -92,26 +101,30 @@ const safeDrawText = (pdfPage: any, text: string, options: any, fallbackFont?: a
     }
   };
 
-const convertDocxToPdf = async (fileData: Uint8Array, fileName: string): Promise<Uint8Array> => {
+const convertDocxToPdf = async (
+  fileData: Uint8Array, 
+  fileName: string,
+  onProgress?: (progress: number, message: string) => void
+): Promise<Uint8Array> => {
   try {
     if (!fileData || fileData.length === 0) {
       throw new Error('Archivo DOCX vacío o corrupto');
     }
 
+    onProgress?.(10, 'Verificando LibreOffice...');
     console.log('[Converter] DOCX: Verificando LibreOffice...');
 
     let hasLibreOffice = false;
-    let libreOfficeError = '';
     try {
-      const { invoke } = await import('@tauri-apps/api/core');
+      const { invoke } = (await import('@tauri-apps/api')).core;
       hasLibreOffice = await invoke<boolean>('check_libreoffice');
       console.log('[Converter] LibreOffice disponible:', hasLibreOffice);
     } catch (err) {
-      libreOfficeError = err instanceof Error ? err.message : 'Error desconocido';
-      console.log('[Converter] Error verificando LibreOffice:', libreOfficeError);
+      console.log('[Converter] LibreOffice no disponible, usando método alternativo');
     }
 
     if (hasLibreOffice) {
+      onProgress?.(20, 'Convirtiendo con LibreOffice...');
       console.log('[Converter] DOCX: Convirtiendo con LibreOffice...');
 
       try {
@@ -123,7 +136,7 @@ const convertDocxToPdf = async (fileData: Uint8Array, fileName: string): Promise
         const { writeFile } = await import('@tauri-apps/plugin-fs');
         await writeFile(inputPath, Array.from(fileData) as unknown as Uint8Array);
 
-        const { invoke } = await import('@tauri-apps/api/core');
+        const { invoke } = (await import('@tauri-apps/api')).core;
         const outputPath = await invoke<string>('convert_to_pdf', {
           inputPath,
           outputFilename: outputFileName
@@ -135,6 +148,7 @@ const convertDocxToPdf = async (fileData: Uint8Array, fileName: string): Promise
         const pdfData = await readFile(outputPath);
         const pdfBytes = new Uint8Array(pdfData);
 
+        onProgress?.(100, 'PDF generado correctamente');
         console.log('[Converter] DOCX: PDF generado con LibreOffice, tamaño:', pdfBytes.length);
         return pdfBytes;
       } catch (loErr) {
@@ -143,7 +157,8 @@ const convertDocxToPdf = async (fileData: Uint8Array, fileName: string): Promise
       }
     }
 
-    console.log('[Converter] DOCX: LibreOffice no disponible o falló, usando conversión alternativa...');
+    onProgress?.(30, 'Procesando documento DOCX...');
+    console.log('[Converter] DOCX: Usando conversión alternativa...');
 
     const mammothLib = await import('mammoth');
     const newBuffer = new ArrayBuffer(fileData.length);
@@ -441,8 +456,10 @@ const convertDocxToPdf = async (fileData: Uint8Array, fileName: string): Promise
         }
       };
 
-      for (const child of Array.from(tempDiv.childNodes)) {
-        await processNode(child);
+      const childNodes = Array.from(tempDiv.childNodes);
+      for (let i = 0; i < childNodes.length; i++) {
+        await processNode(childNodes[i]);
+        onProgress?.(30 + (i / childNodes.length) * 50, `Procesando contenido: ${i + 1}/${childNodes.length}`);
       }
 
       if (inList) {
@@ -452,9 +469,11 @@ const convertDocxToPdf = async (fileData: Uint8Array, fileName: string): Promise
 
     await processHtmlContent(html);
 
+    onProgress?.(90, 'Generando PDF...');
     console.log('[Converter] DOCX: Generando PDF con pdf-lib, páginas:', pdfDoc.getPageCount());
 
     const pdfBytes = await pdfDoc.save();
+    onProgress?.(100, 'PDF generado correctamente');
     console.log('[Converter] DOCX: PDF generado, tamaño:', pdfBytes.length);
 
     return new Uint8Array(pdfBytes);
@@ -539,29 +558,19 @@ y += 15;
   }
 };
 
-let pdfjsWorkerConfigured = false;
-
-const initPdfJsWorker = async () => {
-  if (pdfjsWorkerConfigured) return;
-  
-  const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
-  pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-    'pdfjs-dist/legacy/build/pdf.worker.min.mjs',
-    import.meta.url
-  ).toString();
-  pdfjsWorkerConfigured = true;
-};
+import { loadPdf, isPdfValid } from '../../utils/pdfjs';
 
 const convertPdfToImages = async (fileData: Uint8Array): Promise<string[]> => {
   try {
-    await initPdfJsWorker();
-    const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
-    const pdfDoc = await pdfjsLib.getDocument({ data: fileData }).promise;
-    const numPages = pdfDoc.numPages;
+    if (!isPdfValid(fileData)) {
+      throw new Error('El archivo no es un PDF válido');
+    }
+    
+    const { doc, numPages } = await loadPdf(fileData);
     const imageUrls: string[] = [];
     
     for (let i = 1; i <= numPages; i++) {
-      const page = await pdfDoc.getPage(i);
+      const page = await doc.getPage(i);
       const viewport = page.getViewport({ scale: 2 });
       
       const canvas = document.createElement('canvas');
@@ -656,10 +665,15 @@ export function ConverterPage() {
 
   const convertSingleFile = async (file: ConvertFile, fileData: Uint8Array): Promise<void> => {
     console.log('[Converter] Iniciando conversión:', file.name);
-    updateFileStatus(file.uid, { status: 'converting', progress: 10 });
+    
+    const updateProgress = (progress: number, message: string) => {
+      updateFileStatus(file.uid, { progress, progressMessage: message });
+    };
+
+    updateProgress(5, 'Iniciando...');
 
     try {
-      updateFileStatus(file.uid, { progress: 20 });
+      updateProgress(10, 'Procesando archivo...');
 
       let outputName = '';
       let outputBlob: Blob;
@@ -668,7 +682,7 @@ export function ConverterPage() {
         outputName = file.name.replace(/\.(docx|doc)$/i, '.pdf');
         console.log('[Converter] Convirtiendo DOCX → PDF...');
 
-        const pdfBytes = await convertDocxToPdf(fileData, file.name);
+        const pdfBytes = await convertDocxToPdf(fileData, file.name, updateProgress);
         console.log('[Converter] PDF generado, tamaño:', pdfBytes.length);
         const bufferCopy = new ArrayBuffer(pdfBytes.length);
         const view = new Uint8Array(bufferCopy);
@@ -679,6 +693,7 @@ export function ConverterPage() {
         outputName = file.name.replace(/\.(xlsx|xls)$/i, '.pdf');
         console.log('[Converter] Convirtiendo XLSX → PDF...');
         
+        updateProgress(30, 'Analizando Excel...');
         const pdfBytes = await convertXlsxToPdf(fileData);
         console.log('[Converter] PDF generado, tamaño:', pdfBytes.length);
         const bufferCopy = new ArrayBuffer(pdfBytes.length);
@@ -690,6 +705,7 @@ export function ConverterPage() {
         outputName = file.name.replace(/\.(pptx|ppt)$/i, '.pdf');
         console.log('[Converter] PowerPoint → PDF (limitado)');
         
+        updateProgress(50, 'Convirtiendo PowerPoint...');
         message.warning('PowerPoint requiere LibreOffice. Convirtiendo a texto...');
         const doc = new jsPDF();
         doc.setFontSize(16);
@@ -704,8 +720,10 @@ export function ConverterPage() {
         outputName = file.name.replace(/\.pdf$/i, '.png');
         console.log('[Converter] Convirtiendo PDF → Imágenes...');
         
+        updateProgress(30, 'Extrayendo imágenes...');
         const imageUrls = await convertPdfToImages(fileData);
         
+        updateProgress(90, 'Preparando descarga...');
         if (imageUrls.length > 0) {
           const link = document.createElement('a');
           link.download = `page-1-${file.name.replace('.pdf', '.png')}`;
@@ -715,14 +733,14 @@ export function ConverterPage() {
           message.success(`${imageUrls.length} página(s) extraída(s)`);
         }
         
-        updateFileStatus(file.uid, { status: 'done', progress: 100, outputName: `${imageUrls.length} imágenes` });
+        updateFileStatus(file.uid, { status: 'done', progress: 100, outputName: `${imageUrls.length} imágenes`, progressMessage: 'Completado' });
         return;
         
       } else {
         throw new Error('Modo de conversión no soportado');
       }
       
-      updateFileStatus(file.uid, { progress: 80 });
+      updateProgress(90, 'Finalizando...');
       
       const url = URL.createObjectURL(outputBlob);
       const link = document.createElement('a');
@@ -731,13 +749,13 @@ export function ConverterPage() {
       link.click();
       URL.revokeObjectURL(url);
       
-      updateFileStatus(file.uid, { status: 'done', progress: 100, outputName });
+      updateFileStatus(file.uid, { status: 'done', progress: 100, outputName, progressMessage: 'Completado' });
       console.log('[Converter] Conversión completada:', outputName);
       
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Error desconocido';
       console.error('[Converter] Error:', errorMsg);
-      updateFileStatus(file.uid, { status: 'error', error: errorMsg, progress: 0 });
+      updateFileStatus(file.uid, { status: 'error', error: errorMsg, progress: 0, progressMessage: 'Error: ' + errorMsg });
     }
   };
 

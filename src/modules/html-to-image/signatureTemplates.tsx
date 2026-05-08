@@ -1,4 +1,27 @@
 import React from 'react';
+import { calculateLayout, buildElementList, type LayoutConfig, type ElementMetrics } from './layoutEngine';
+
+// ==================== INTERFACES ====================
+
+export interface LogoConfig {
+  url: string;
+  width: number;
+  height: number;
+  lockAspectRatio: boolean;
+  naturalWidth?: number;
+  naturalHeight?: number;
+  objectFit: 'contain' | 'cover' | 'fill' | 'scale-down';
+  borderRadius: number;
+  padding: number;
+  backgroundColor?: string;
+  position: 'left' | 'right' | 'top' | 'bottom' | 'center';
+  alignment: 'start' | 'center' | 'end';
+  altText: string;
+  linkUrl?: string;
+  show: boolean;
+  maxWidthForExport: number;
+  quality: number;
+}
 
 export interface EmailSignature {
   name: string;
@@ -38,8 +61,8 @@ export interface EmailSignature {
     facebook: boolean;
     skype: boolean;
   };
-  photoSize: number;
-  logoSize: number;
+  logoConfig: LogoConfig;
+  darkMode: boolean;
 }
 
 export interface SignatureTemplate {
@@ -54,46 +77,79 @@ export interface SignatureTemplate {
   category?: string;
 }
 
+// ==================== COMPONENTES BASE ====================
+
 const linkStyle = (color: string) => ({
   color,
   textDecoration: 'none' as const,
 });
 
-const IconPhone = ({ color, iconStyle }: { color: string; iconStyle?: 'emoji' | 'text' | 'none' }) => {
+const renderIcon = (type: 'phone' | 'email' | 'web' | 'address' | 'skype', color: string, iconStyle?: 'emoji' | 'text' | 'none') => {
   if (iconStyle === 'none') return <span style={{ marginRight: 4, color }}> </span>;
-  if (iconStyle === 'text') return <span style={{ color, marginRight: 4, fontWeight: 600, fontSize: 11 }}>TEL</span>;
-  return <span style={{ color, marginRight: 4 }}>📞</span>;
-};
-const IconEmail = ({ color, iconStyle }: { color: string; iconStyle?: 'emoji' | 'text' | 'none' }) => {
-  if (iconStyle === 'none') return <span style={{ marginRight: 4, color }}> </span>;
-  if (iconStyle === 'text') return <span style={{ color, marginRight: 4, fontWeight: 600, fontSize: 11 }}>EMAIL</span>;
-  return <span style={{ color, marginRight: 4 }}>✉️</span>;
-};
-const IconWeb = ({ color, iconStyle }: { color: string; iconStyle?: 'emoji' | 'text' | 'none' }) => {
-  if (iconStyle === 'none') return <span style={{ marginRight: 4, color }}> </span>;
-  if (iconStyle === 'text') return <span style={{ color, marginRight: 4, fontWeight: 600, fontSize: 11 }}>WEB</span>;
-  return <span style={{ color, marginRight: 4 }}>🌐</span>;
-};
-const IconLocation = ({ color, iconStyle }: { color: string; iconStyle?: 'emoji' | 'text' | 'none' }) => {
-  if (iconStyle === 'none') return <span style={{ marginRight: 4, color }}> </span>;
-  if (iconStyle === 'text') return <span style={{ color, marginRight: 4, fontWeight: 600, fontSize: 11 }}>DIR</span>;
-  return <span style={{ color, marginRight: 4 }}>📍</span>;
-};
-const IconSkype = ({ color, iconStyle }: { color: string; iconStyle?: 'emoji' | 'text' | 'none' }) => {
-  if (iconStyle === 'none') return <span style={{ marginRight: 4, color }}> </span>;
-  if (iconStyle === 'text') return <span style={{ color, marginRight: 4, fontWeight: 600, fontSize: 11 }}>SKYPE</span>;
-  return <span style={{ color, marginRight: 4 }}>💬</span>;
+  if (iconStyle === 'text') {
+    const labels = { email: 'EMAIL', phone: 'TEL', web: 'WEB', address: 'DIR', skype: 'SKYPE' };
+    return <span style={{ color, marginRight: 4, fontWeight: 600, fontSize: 11 }}>{labels[type]}</span>;
+  }
+  const emojis = { email: '✉️', phone: '📞', web: '🌐', address: '📍', skype: '💬' };
+  return <span style={{ color, marginRight: 4 }}>{emojis[type]}</span>;
 };
 
-const LogoImageComp = ({ logoUrl, size = 80 }: { logoUrl: string; size?: number }) => (
-  logoUrl && <img src={logoUrl} alt="Logo" style={{ width: size, height: size, objectFit: 'contain', borderRadius: 8 }} />
-);
+// ==================== LOGO COMPONENT ====================
+
+export const LogoImageComp = ({ sig }: { sig: EmailSignature }) => {
+  const logoConfig = sig.logoConfig;
+  
+  if (!logoConfig?.url || !logoConfig.show) return null;
+  
+  const logoStyle: React.CSSProperties = {
+    width: logoConfig.width,
+    height: logoConfig.height,
+    objectFit: logoConfig.objectFit,
+    borderRadius: logoConfig.borderRadius,
+    padding: logoConfig.padding,
+    backgroundColor: logoConfig.backgroundColor || 'transparent',
+    maxWidth: '100%',
+    display: 'block',
+  };
+
+  const wrapperStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: logoConfig.alignment === 'start' ? 'flex-start' : 
+                   logoConfig.alignment === 'end' ? 'flex-end' : 'center',
+    justifyContent: logoConfig.position === 'left' ? 'flex-start' : 
+                      logoConfig.position === 'right' ? 'flex-end' : 'center',
+  };
+
+  const imgElement = (
+    <img 
+      src={logoConfig.url} 
+      alt={logoConfig.altText || "Logo"} 
+      style={logoStyle}
+    />
+  );
+
+  if (logoConfig.linkUrl) {
+    return (
+      <div style={wrapperStyle}>
+        <a href={logoConfig.linkUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block' }}>
+          {imgElement}
+        </a>
+      </div>
+    );
+  }
+
+  return <div style={wrapperStyle}>{imgElement}</div>;
+};
+
+// ==================== PHOTO COMPONENT ====================
 
 const PhotoImage = ({ photoUrl, size = 80, borderColor = '#2563eb' }: { photoUrl: string; size?: number; borderColor?: string }) => (
   photoUrl && <img src={photoUrl} alt="Foto" style={{ width: size, height: size, objectFit: 'cover', borderRadius: '50%', border: `3px solid ${borderColor}` }} />
 );
 
-const NameBlock = ({ sig }: { sig: EmailSignature }) => (
+// ==================== RENDER HELPERS ====================
+
+const renderNameBlock = (sig: EmailSignature) => (
   <div>
     <div style={{ fontSize: sig.fontSize + 6, fontWeight: 'bold', color: sig.textColor }}>
       {sig.name || 'Tu Nombre'}
@@ -111,32 +167,32 @@ const NameBlock = ({ sig }: { sig: EmailSignature }) => (
   </div>
 );
 
-const ContactBlock = ({ sig }: { sig: EmailSignature }) => {
-  const vf = sig.visibleFields;
+const renderContactBlock = (sig: EmailSignature) => {
+  const vf = sig.visibleFields || {};
   const currentIconStyle = sig.iconStyle || 'emoji';
   return (
     <div style={{ fontSize: sig.fontSize }}>
       {vf?.email !== false && sig.email && (
-        <div><IconEmail color={sig.linkColor} iconStyle={currentIconStyle} /><a href={`mailto:${sig.email}`} style={linkStyle(sig.linkColor)}>{sig.email}</a></div>
+        <div>{renderIcon('email', sig.linkColor, currentIconStyle)}<a href={`mailto:${sig.email}`} style={linkStyle(sig.linkColor)}>{sig.email}</a></div>
       )}
       {vf?.phone !== false && sig.phone && (
-        <div style={{ marginTop: 4 }}><IconPhone color={sig.linkColor} iconStyle={currentIconStyle} /><a href={`tel:${sig.phone}`} style={linkStyle(sig.linkColor)}>{sig.phone}</a></div>
+        <div style={{ marginTop: 4 }}>{renderIcon('phone', sig.linkColor, currentIconStyle)}<a href={`tel:${sig.phone}`} style={linkStyle(sig.linkColor)}>{sig.phone}</a></div>
       )}
       {vf?.website !== false && sig.website && (
-        <div style={{ marginTop: 4 }}><IconWeb color={sig.linkColor} iconStyle={currentIconStyle} /><a href={`https://${sig.website}`} style={linkStyle(sig.linkColor)} target="_blank">{sig.website}</a></div>
+        <div style={{ marginTop: 4 }}>{renderIcon('web', sig.linkColor, currentIconStyle)}<a href={`https://${sig.website}`} style={linkStyle(sig.linkColor)} target="_blank">{sig.website}</a></div>
       )}
       {vf?.address !== false && sig.address && (
-        <div style={{ marginTop: 4 }}><IconLocation color={sig.linkColor} iconStyle={currentIconStyle} />{sig.address}</div>
+        <div style={{ marginTop: 4 }}>{renderIcon('address', sig.linkColor, currentIconStyle)}{sig.address}</div>
       )}
       {vf?.skype !== false && sig.skype && (
-        <div style={{ marginTop: 4 }}><IconSkype color={sig.linkColor} iconStyle={currentIconStyle} />{sig.skype}</div>
+        <div style={{ marginTop: 4 }}>{renderIcon('skype', sig.linkColor, currentIconStyle)}{sig.skype}</div>
       )}
     </div>
   );
 };
 
-const SocialBlock = ({ sig }: { sig: EmailSignature }) => {
-  const vf = sig.visibleFields;
+const renderSocialBlock = (sig: EmailSignature) => {
+  const vf = sig.visibleFields || {};
   const hasSocial = (vf?.linkedin !== false && sig.linkedin) ||
     (vf?.twitter !== false && sig.twitter) ||
     (vf?.instagram !== false && sig.instagram) ||
@@ -154,256 +210,548 @@ const SocialBlock = ({ sig }: { sig: EmailSignature }) => {
   );
 };
 
-export function renderFlexibleSignature(sig: EmailSignature, width: number, selectedTemplate?: string): React.ReactNode {
-  const containerStyle: React.CSSProperties = {
-    width,
-    maxWidth: '100%',
-    padding: 24,
-    background: sig.bgColor,
-    fontFamily: sig.fontFamily,
-    fontSize: sig.fontSize,
-    borderRadius: sig.borderRadius,
+// ==================== TEMPLATE STYLES ====================
+
+interface TemplateStyles {
+  container?: React.CSSProperties;
+  photoPlaceholder?: React.CSSProperties;
+  contentBlock?: React.CSSProperties;
+}
+
+// Dark mode color generator - auto-generates dark theme from light theme
+function getDarkModeColors(sig: EmailSignature) {
+  if (!sig.darkMode) return sig;
+
+  // Convert light colors to dark equivalents
+  const hexToHSL = (hex: string) => {
+    const r = parseInt(hex.slice(1, 3), 16) / 255;
+    const g = parseInt(hex.slice(3, 5), 16) / 255;
+    const b = parseInt(hex.slice(5, 7), 16) / 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    let h = 0, s = 0, l = (max + min) / 2;
+    if (max !== min) {
+      const d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+      else if (max === g) h = ((b - r) / d + 2) / 6;
+      else h = ((r - g) / d + 4) / 6;
+    }
+    return { h: h * 360, s: s * 100, l: l * 100 };
   };
 
-  const templateId = selectedTemplate || '';
-  const photoSize = sig.photoSize || 80;
-  const logoSize = sig.logoSize || 80;
+  const hslToHex = (h: number, s: number, l: number) => {
+    l /= 100; s /= 100;
+    const a = s * Math.min(l, 1 - l);
+    const f = (n: number) => {
+      const k = (n + h / 30) % 12;
+      const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+      return Math.round(255 * color).toString(16).padStart(2, '0');
+    };
+    return `#${f(0)}${f(8)}${f(4)}`;
+  };
 
-  if (templateId === 'minimal-clean') {
+  const bgHSL = hexToHSL(sig.bgColor);
+  const textHSL = hexToHSL(sig.textColor);
+  const accentHSL = hexToHSL(sig.accentColor);
+
+  return {
+    ...sig,
+    bgColor: hslToHex(bgHSL.h, bgHSL.s * 0.3, 15), // Very dark background
+    textColor: hslToHex(textHSL.h, textHSL.s * 0.2, 90), // Light text
+    linkColor: hslToHex(accentHSL.h, accentHSL.s, 70), // Bright accent for links
+    accentColor: hslToHex(accentHSL.h, accentHSL.s, 65), // Bright accent
+  };
+}
+
+function getTemplateStyles(templateId: string, sig: EmailSignature): TemplateStyles {
+  // Apply dark mode colors if enabled
+  const colors = sig.darkMode ? getDarkModeColors(sig) : sig;
+  const bgColor = colors.bgColor;
+  const textColor = colors.textColor;
+  const accentColor = colors.accentColor;
+
+  const base: TemplateStyles = {
+    container: {},
+    photoPlaceholder: {
+      width: 80, height: 80, borderRadius: '50%',
+      background: accentColor + '20', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontSize: 32, color: accentColor
+    },
+    contentBlock: {}
+  };
+
+  switch (templateId) {
+    case 'minimal-clean':
+      return {
+        ...base,
+        container: {
+          ...base.container,
+          background: sig.darkMode ? bgColor : `linear-gradient(to right, ${bgColor}, ${accentColor}05)`,
+          borderLeft: `5px solid ${accentColor}`,
+          borderRight: `1px solid ${accentColor}15`,
+          borderTop: `1px solid ${accentColor}15`,
+          borderBottom: `1px solid ${accentColor}15`,
+          borderRadius: sig.borderRadius || 8,
+          boxShadow: sig.darkMode ? '0 4px 12px rgba(0,0,0,0.4)' : '0 4px 12px rgba(0,0,0,0.04)',
+          padding: '20px 24px',
+          transition: 'all 0.3s ease'
+        }
+      };
+    case 'minimal-dark':
+      return {
+        ...base,
+        container: {
+          background: sig.darkMode ? bgColor : 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+          color: sig.darkMode ? textColor : '#f8fafc',
+          border: `1px solid ${accentColor}40`,
+          borderRadius: sig.borderRadius || 12,
+          padding: '20px 24px',
+          boxShadow: sig.darkMode ? `0 4px 20px ${accentColor}15` : '0 8px 24px rgba(0,0,0,0.3)',
+          transition: 'all 0.3s ease'
+        },
+        photoPlaceholder: { ...base.photoPlaceholder, background: accentColor + '40', border: `3px solid ${accentColor}`, color: sig.darkMode ? textColor : '#f8fafc' }
+      };
+    case 'hierarchical-top':
+      return {
+        ...base,
+        container: {
+          ...base.container, textAlign: 'center' as const,
+          background: sig.darkMode
+            ? `linear-gradient(180deg, ${bgColor} 0%, ${bgColor}d0 100%)`
+            : 'linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%)',
+          borderTop: `6px solid ${accentColor}`,
+          borderBottom: `1px solid ${accentColor}20`,
+          borderRadius: `${sig.borderRadius || 12}px ${sig.borderRadius || 12}px 8px 8px`,
+          padding: '28px 32px 24px',
+          boxShadow: sig.darkMode ? '0 4px 15px rgba(0,0,0,0.4)' : '0 4px 15px rgba(0,0,0,0.05)',
+          position: 'relative' as const,
+          transition: 'all 0.3s ease'
+        },
+        photoPlaceholder: { ...base.photoPlaceholder, width: 110, height: 110, border: `4px solid ${accentColor}`, borderRadius: '50%', boxShadow: `0 4px 10px ${accentColor}30` }
+      };
+    case 'hierarchical-sidebar':
+      return {
+        ...base,
+        container: {
+          ...base.container,
+          background: sig.darkMode ? bgColor : '#ffffff',
+          borderLeft: `8px solid ${accentColor}`,
+          paddingLeft: 24,
+          position: 'relative' as const
+        },
+        photoPlaceholder: { ...base.photoPlaceholder, border: `3px solid ${accentColor}`, boxShadow: `0 4px 12px ${accentColor}20` }
+      };
+    case 'visual-centered':
+      return {
+        ...base,
+        container: {
+          ...base.container, textAlign: 'center' as const,
+          background: `radial-gradient(circle at center, ${bgColor} 0%, ${bgColor}d0 70%, ${accentColor}10 100%)`,
+          border: `2px solid ${accentColor}40`,
+          borderRadius: sig.borderRadius || 16,
+          padding: '24px 32px'
+        },
+        photoPlaceholder: { ...base.photoPlaceholder, width: 110, height: 110, border: `4px double ${accentColor}`, borderRadius: '50%' },
+        contentBlock: { border: `2px solid ${accentColor}60`, borderRadius: sig.borderRadius, display: 'inline-block', padding: '12px 24px', background: accentColor + '08' }
+      };
+    case 'visual-beside':
+      return {
+        ...base,
+        container: {
+          ...base.container,
+          background: `linear-gradient(90deg, ${accentColor}08 0%, ${bgColor} 30%, ${bgColor} 70%, ${accentColor}08 100%)`,
+          padding: 16
+        },
+        photoPlaceholder: { ...base.photoPlaceholder, border: `3px solid ${accentColor}`, boxShadow: `0 4px 12px ${accentColor}20` },
+        contentBlock: { background: bgColor, padding: '12px 16px', borderRadius: 8, borderLeft: `4px solid ${accentColor}`, boxShadow: `0 2px 8px rgba(0,0,0,0.05)` }
+      };
+    case 'sectoral-blocks':
+      return {
+        ...base,
+        container: {
+          ...base.container,
+          padding: 0,
+          overflow: 'hidden',
+          background: `linear-gradient(135deg, ${accentColor}05 0%, ${bgColor} 100%)`
+        },
+        photoPlaceholder: { ...base.photoPlaceholder, border: `3px solid ${accentColor}`, boxShadow: `0 4px 12px ${accentColor}20` }
+      };
+    case 'sectoral-grid':
+      return {
+        ...base,
+        container: {
+          ...base.container,
+          background: `linear-gradient(135deg, ${accentColor}08 0%, ${bgColor} 100%)`,
+          padding: 16
+        },
+        photoPlaceholder: { ...base.photoPlaceholder, width: 90, height: 90, border: `3px solid ${accentColor}`, borderRadius: '8px' }
+      };
+    case 'corporate-strict':
+      return {
+        ...base,
+        container: {
+          ...base.container,
+          background: bgColor,
+          borderLeft: `8px solid ${accentColor}`,
+          borderTop: `1px solid ${accentColor}30`,
+          borderBottom: `1px solid ${accentColor}30`,
+          fontFamily: 'Arial, sans-serif',
+          padding: '16px 24px'
+        },
+        photoPlaceholder: { ...base.photoPlaceholder, borderRadius: 0, border: `2px solid ${accentColor}40` }
+      };
+    case 'corporate-modern':
+      return {
+        ...base,
+        container: {
+          ...base.container,
+          background: `linear-gradient(90deg, ${accentColor}15 0%, ${bgColor} 50%, ${accentColor}08 100%)`,
+          border: `1px solid ${accentColor}30`,
+          boxShadow: sig.darkMode ? '0 4px 12px rgba(0,0,0,0.3)' : '0 4px 12px rgba(0,0,0,0.08)',
+          padding: '20px 24px',
+          position: 'relative' as const
+        },
+        photoPlaceholder: { ...base.photoPlaceholder, border: `3px solid ${accentColor}`, boxShadow: `0 4px 12px ${accentColor}20` }
+      };
+    case 'elegant-serif':
+      return {
+        ...base,
+        container: {
+          ...base.container,
+          fontFamily: "'Georgia', 'Times New Roman', serif",
+          textAlign: 'center' as const,
+          background: bgColor,
+          borderTop: `3px double ${accentColor}`,
+          borderBottom: `3px double ${accentColor}`,
+          letterSpacing: '1px',
+          padding: '24px 32px'
+        },
+        photoPlaceholder: { ...base.photoPlaceholder, borderRadius: '4px', border: `2px solid ${accentColor}` }
+      };
+    case 'tech-startup':
+      return {
+        ...base,
+        container: {
+          ...base.container,
+          background: `linear-gradient(135deg, ${accentColor}10 0%, ${bgColor} 40%, ${bgColor} 60%, ${accentColor}05 100%)`,
+          borderTop: `4px solid ${accentColor}`,
+          borderBottom: `1px solid ${accentColor}20`,
+          position: 'relative' as const,
+          overflow: 'hidden',
+          fontFamily: "'SF Mono', 'Fira Code', monospace",
+          padding: '20px 24px'
+        },
+        photoPlaceholder: { ...base.photoPlaceholder, borderRadius: '8px', border: `3px solid ${accentColor}`, boxShadow: `0 0 20px ${accentColor}30` }
+      };
+    case 'card-shadow':
+      return {
+        ...base,
+        container: {
+          ...base.container,
+          background: bgColor,
+          boxShadow: sig.darkMode
+            ? '0 4px 20px rgba(0,0,0,0.4), 0 1px 3px rgba(0,0,0,0.3)'
+            : '0 4px 20px rgba(0,0,0,0.1), 0 1px 3px rgba(0,0,0,0.06)',
+          borderRadius: sig.borderRadius,
+          padding: 24,
+          transform: 'translateY(-2px)',
+          transition: 'all 0.3s ease'
+        }
+      };
+    case 'legal-formal':
+      return {
+        ...base,
+        container: {
+          ...base.container,
+          background: bgColor,
+          borderTop: `2px solid ${textColor}`,
+          borderBottom: `2px solid ${textColor}`,
+          fontFamily: 'Times New Roman, serif',
+          textAlign: 'center' as const,
+          padding: '24px 32px',
+          letterSpacing: '2px'
+        },
+        photoPlaceholder: { ...base.photoPlaceholder, borderRadius: 0, border: `2px solid ${textColor}` }
+      };
+    case 'dark-gradient':
+      return {
+        ...base,
+        container: {
+          ...base.container,
+          background: sig.darkMode
+            ? `radial-gradient(circle at 30% 20%, ${accentColor}15 0%, ${bgColor} 50%, ${accentColor}08 100%)`
+            : `linear-gradient(135deg, ${bgColor} 0%, ${accentColor}20 100%)`,
+          color: textColor,
+          borderTop: `3px solid ${accentColor}`,
+          padding: '24px 32px'
+        }
+      };
+    case 'neon-glow':
+      return {
+        ...base,
+        container: {
+          ...base.container,
+          background: sig.darkMode ? bgColor : '#0a0a0a',
+          border: `2px solid ${accentColor}`,
+          boxShadow: `0 0 30px ${accentColor}40, 0 0 60px ${accentColor}20, inset 0 0 30px ${accentColor}10`,
+          textShadow: `0 0 10px ${accentColor}60, 0 0 20px ${accentColor}40`,
+          padding: '24px 32px'
+        }
+      };
+    case 'minimalist-lines':
+      return {
+        ...base,
+        container: {
+          ...base.container,
+          background: bgColor,
+          borderTop: `2px solid ${accentColor}60`,
+          borderBottom: `1px solid ${accentColor}30`,
+          borderLeft: `1px solid ${accentColor}20`,
+          borderRight: `1px solid ${accentColor}20`,
+          padding: '20px 28px'
+        }
+      };
+    case 'professional-badge':
+      return {
+        ...base,
+        container: {
+          ...base.container,
+          background: `linear-gradient(135deg, ${accentColor}08 0%, ${bgColor} 100%)`,
+          border: `1px solid ${accentColor}20`,
+          borderRadius: sig.borderRadius,
+          padding: '20px 24px',
+          position: 'relative' as const
+        },
+        photoPlaceholder: { ...base.photoPlaceholder, width: 70, height: 70, border: `3px solid ${accentColor}`, borderRadius: '8px', boxShadow: `0 4px 12px ${accentColor}20` }
+      };
+    case 'color-block':
+      return {
+        ...base,
+        container: {
+          ...base.container,
+          background: bgColor,
+          borderLeft: `10px solid ${accentColor}`,
+          borderRight: `1px solid ${accentColor}20`,
+          borderTop: `1px solid ${accentColor}20`,
+          borderBottom: `1px solid ${accentColor}20`,
+          padding: '24px 28px',
+          fontWeight: 600
+        },
+        photoPlaceholder: { ...base.photoPlaceholder, border: `3px solid ${accentColor}`, boxShadow: `0 4px 12px ${accentColor}20` }
+      };
+    case 'floating-island':
+      return {
+        ...base,
+        container: {
+          ...base.container,
+          background: bgColor,
+          boxShadow: sig.darkMode
+            ? '0 20px 60px rgba(0,0,0,0.5), 0 8px 20px rgba(0,0,0,0.4)'
+            : '0 20px 60px rgba(0,0,0,0.15), 0 8px 20px rgba(0,0,0,0.1)',
+          borderRadius: sig.borderRadius,
+          padding: 32,
+          transform: 'translateY(-4px)'
+        }
+      };
+    case 'inline-compact':
+      return {
+        ...base,
+        container: {
+          ...base.container,
+          background: bgColor,
+          borderLeft: `4px solid ${accentColor}`,
+          padding: '12px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          fontSize: 13,
+          lineHeight: 1.4,
+        },
+        photoPlaceholder: { ...base.photoPlaceholder, width: 32, height: 32, borderRadius: '4px', fontSize: 14 }
+      };
+    case 'banner-top':
+      return {
+        ...base,
+        container: {
+          ...base.container,
+          background: bgColor,
+          borderTop: `8px solid ${accentColor}`,
+          borderRadius: `${sig.borderRadius}px ${sig.borderRadius}px 0 0`,
+          padding: '24px 24px 20px',
+          position: 'relative' as const,
+        }
+      };
+    case 'split-two-tone':
+      return {
+        ...base,
+        container: {
+          ...base.container,
+          background: `linear-gradient(90deg, ${accentColor} 0%, ${accentColor} 30%, ${bgColor} 30%, ${bgColor} 100%)`,
+          borderRadius: sig.borderRadius,
+          padding: 0,
+          overflow: 'hidden',
+          display: 'flex',
+          position: 'relative' as const,
+        }
+      };
+    default:
+      return base;
+  }
+}
+
+// ==================== GENERIC TEMPLATE RENDERER ====================
+
+function renderGenericTemplate(
+  sig: EmailSignature,
+  templateId: string,
+  elements: ElementMetrics[],
+  dynamicContainerStyle: React.CSSProperties,
+  layout: LayoutConfig
+): React.ReactNode {
+  const styles = getTemplateStyles(templateId, sig);
+  const photoSize = styles.photoPlaceholder?.width || 80;
+  const accentColor = sig.darkMode ? getDarkModeColors(sig).accentColor : sig.accentColor;
+
+  // Inline Compact: Single line with separators
+  if (templateId === 'inline-compact') {
+    const separator = <span style={{ margin: '0 8px', color: accentColor + '40', fontSize: 10 }}>|</span>;
     return (
-      <div style={{ ...containerStyle, display: 'flex', gap: 24, alignItems: 'center' }}>
-        {sig.photoUrl ? (
-          <PhotoImage photoUrl={sig.photoUrl} size={photoSize} borderColor={sig.accentColor} />
-        ) : (
-          <div style={{ width: photoSize, height: photoSize, borderRadius: '50%', background: sig.accentColor + '20', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: photoSize / 2.5, color: sig.accentColor }}>
-            {(sig.name || 'J').charAt(0).toUpperCase()}
+      <div style={{ ...dynamicContainerStyle, ...styles.container }}>
+        {sig.logoConfig?.show && sig.logoConfig?.url && (
+          <div style={{ marginRight: 8 }}><LogoImageComp sig={sig} /></div>
+        )}
+        {sig.photoUrl && (
+          <div style={{ marginRight: 8 }}>
+            <PhotoImage photoUrl={sig.photoUrl} size={32} borderColor={sig.accentColor} />
           </div>
         )}
-        <div style={{ flex: 1, borderLeft: `3px solid ${sig.accentColor}`, paddingLeft: 20 }}>
-          <NameBlock sig={sig} />
-          <ContactBlock sig={sig} />
-          <SocialBlock sig={sig} />
+        <div style={{ fontWeight: 600, color: sig.textColor, marginRight: 8 }}>{sig.name || 'Tu Nombre'}</div>
+        {separator}
+        {sig.title && <span style={{ color: sig.accentColor, marginRight: 8 }}>{sig.title}</span>}
+        {separator}
+        <div style={{ display: 'flex', gap: 12, fontSize: sig.fontSize }}>
+          {renderContactBlock(sig)}
         </div>
-        {sig.logoUrl && (
-          <LogoImageComp logoUrl={sig.logoUrl} size={logoSize} />
-        )}
+        {separator}
+        <div style={{ display: 'flex', gap: 8 }}>{renderSocialBlock(sig)}</div>
       </div>
     );
   }
 
-  if (templateId === 'minimal-dark') {
+  // Banner Top: Colored banner with content below
+  if (templateId === 'banner-top') {
     return (
-      <div style={{ ...containerStyle, display: 'flex', gap: 24, alignItems: 'center', background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)' }}>
-        <div style={{ flex: 1 }}>
-          <NameBlock sig={sig} />
-          <ContactBlock sig={sig} />
-          <SocialBlock sig={sig} />
+      <div style={{ ...dynamicContainerStyle, ...styles.container }}>
+        <div style={{ position: 'absolute' as const, top: 0, left: 0, right: 0, height: 8, background: sig.accentColor }} />
+        <div style={{ display: 'flex', paddingTop: 16, width: '100%' }}>
+          {elements.map(element => {
+            if (element.id === 'logo') return <LogoImageComp sig={sig} key="logo" />;
+            if (element.id === 'photo') {
+              return sig.photoUrl ? (
+                <PhotoImage photoUrl={sig.photoUrl} size={80} borderColor={sig.accentColor} key="photo" />
+              ) : null;
+            }
+            if (element.id === 'content') {
+              return (
+                <div key="content" style={{ flex: 1, paddingLeft: 20 }}>
+                  {renderNameBlock(sig)}
+                  {renderContactBlock(sig)}
+                  {renderSocialBlock(sig)}
+                </div>
+              );
+            }
+            return null;
+          })}
         </div>
-        {sig.photoUrl ? (
-          <PhotoImage photoUrl={sig.photoUrl} size={photoSize} borderColor={sig.accentColor} />
-        ) : (
-          <div style={{ width: photoSize, height: photoSize, borderRadius: '50%', background: sig.accentColor + '40', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: photoSize / 2.5, color: sig.textColor, border: `3px solid ${sig.accentColor}` }}>
-            {(sig.name || 'J').charAt(0).toUpperCase()}
-          </div>
-        )}
       </div>
     );
   }
 
-  if (templateId === 'hierarchical-top') {
+  // Split Two-Tone: Left panel (accent) + Right panel (bg)
+  if (templateId === 'split-two-tone') {
     return (
-      <div style={{ ...containerStyle, textAlign: 'center', background: 'linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%)' }}>
-        {sig.logoUrl && (
-          <div style={{ marginBottom: 12 }}>
-            <LogoImageComp logoUrl={sig.logoUrl} size={logoSize} />
+      <div style={{ ...dynamicContainerStyle, ...styles.container }}>
+        <div style={{ display: 'flex', width: '100%', minHeight: 120 }}>
+          {/* Left Panel - Accent Color */}
+          <div style={{
+            flex: '0 0 30%',
+            background: sig.accentColor,
+            color: sig.bgColor,
+            padding: 20,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            {sig.logoConfig?.show && sig.logoConfig?.url && <LogoImageComp sig={sig} />}
+            {sig.photoUrl && (
+              <PhotoImage photoUrl={sig.photoUrl} size={60} borderColor={sig.bgColor} />
+            )}
+            <div style={{ fontWeight: 600, fontSize: sig.fontSize + 2, marginTop: 8 }}>{sig.name || 'Tu Nombre'}</div>
           </div>
-        )}
-        {sig.photoUrl ? (
-          <div style={{ marginBottom: 16 }}>
-            <PhotoImage photoUrl={sig.photoUrl} size={100} borderColor={sig.accentColor} />
+          {/* Right Panel - Background Color */}
+          <div style={{
+            flex: 1,
+            background: sig.bgColor,
+            padding: '20px 24px',
+            color: sig.textColor
+          }}>
+            {renderContactBlock(sig)}
+            {renderSocialBlock(sig)}
           </div>
-        ) : (
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ width: 100, height: 100, borderRadius: '50%', background: sig.accentColor + '30', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40, color: sig.accentColor, margin: '0 auto', border: `4px solid ${sig.accentColor}` }}>
-              {(sig.name || 'J').charAt(0).toUpperCase()}
-            </div>
-          </div>
-        )}
-        <div style={{ padding: '0 20px' }}>
-          <div style={{ fontSize: sig.fontSize + 12, fontWeight: 'bold', color: sig.textColor, lineHeight: 1.3 }}>
-            {sig.name || 'Tu Nombre'}
-          </div>
-          {sig.title && (
-            <div style={{ fontSize: sig.fontSize + 4, color: sig.accentColor, marginTop: 6, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>
-              {sig.title}
-            </div>
-          )}
-          {sig.company && (
-            <div style={{ fontSize: sig.fontSize, color: sig.textColor, fontWeight: 500, marginTop: 8, opacity: 0.8 }}>
-              {sig.company}
-            </div>
-          )}
         </div>
-        <div style={{ marginTop: 16, paddingTop: 16, borderTop: `2px solid ${sig.accentColor}`, display: 'inline-block', padding: '16px 32px' }}>
-          <div style={{ fontSize: sig.fontSize, color: sig.textColor }}>
-            {sig.email && <span style={{ color: sig.linkColor }}>{sig.email}</span>}
-            {sig.email && sig.phone && <span style={{ color: sig.textColor, margin: '0 8px' }}>|</span>}
-            {sig.phone && <span style={{ color: sig.linkColor }}>{sig.phone}</span>}
-          </div>
-          {sig.website && (
-            <div style={{ fontSize: sig.fontSize, color: sig.linkColor, marginTop: 4 }}>{sig.website}</div>
-          )}
-        </div>
-        {(sig.linkedin || sig.twitter) && (
-          <div style={{ marginTop: 12, display: 'flex', justifyContent: 'center', gap: 16, fontSize: sig.fontSize - 1 }}>
-            {sig.linkedin && <span style={{ color: sig.linkColor }}>LinkedIn</span>}
-            {sig.twitter && <span style={{ color: sig.linkColor }}>Twitter</span>}
-          </div>
-        )}
       </div>
     );
   }
 
-  // Plantilla 4 - Lateral (barra lateral con color acento)
-  if (templateId === 'hierarchical-sidebar') {
-    return (
-      <div style={{ ...containerStyle, display: 'flex', gap: 0 }}>
-        <div style={{ width: 6, background: sig.accentColor, borderRadius: `${sig.borderRadius}px 0 0 ${sig.borderRadius}px` }} />
-        <div style={{ flex: 1, padding: '16px 20px' }}>
-          {sig.photoUrl ? (
-            <PhotoImage photoUrl={sig.photoUrl} size={photoSize} borderColor={sig.accentColor} />
-          ) : (
-            <div style={{ width: photoSize, height: photoSize, borderRadius: '50%', background: sig.accentColor + '30', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: photoSize / 2.5, color: sig.accentColor, marginBottom: 8 }}>
-              {(sig.name || 'J').charAt(0).toUpperCase()}
-            </div>
-          )}
-          <div style={{ fontSize: sig.fontSize + 8, fontWeight: 'bold', color: sig.textColor, marginTop: 8 }}>
-            {sig.name || 'Tu Nombre'}
-          </div>
-          {sig.title && (
-            <div style={{ fontSize: sig.fontSize + 1, color: sig.accentColor, fontWeight: 500 }}>{sig.title}</div>
-          )}
-          {sig.company && (
-            <div style={{ fontSize: sig.fontSize - 1, color: sig.textColor, opacity: 0.8, marginTop: 2 }}>{sig.company}</div>
-          )}
-        </div>
-        <div style={{ flex: 1, padding: '16px 0', borderLeft: `1px solid ${sig.textColor}15` }}>
-          <ContactBlock sig={sig} />
-          <SocialBlock sig={sig} />
-        </div>
-        {sig.logoUrl && (
-          <div style={{ padding: '16px 20px 16px 0', display: 'flex', alignItems: 'center' }}>
-            <LogoImageComp logoUrl={sig.logoUrl} size={logoSize} />
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // Plantilla 5 - Centrado (diseño centrado con logo grande)
-  if (templateId === 'visual-centered') {
-    return (
-      <div style={{ ...containerStyle, textAlign: 'center', background: `linear-gradient(135deg, ${sig.bgColor} 0%, ${sig.bgColor}dd 100%)` }}>
-        {sig.logoUrl && (
-          <div style={{ marginBottom: 12 }}>
-            <LogoImageComp logoUrl={sig.logoUrl} size={logoSize} />
-          </div>
-        )}
-        <div style={{ padding: '16px 24px', border: `2px solid ${sig.accentColor}`, borderRadius: sig.borderRadius, display: 'inline-block' }}>
-          {sig.photoUrl ? (
-            <PhotoImage photoUrl={sig.photoUrl} size={photoSize} borderColor={sig.accentColor} />
-          ) : (
-            <div style={{ width: photoSize, height: photoSize, borderRadius: '50%', background: sig.accentColor + '30', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: photoSize / 2.5, color: sig.accentColor, margin: '0 auto', border: `3px solid ${sig.accentColor}` }}>
-              {(sig.name || 'J').charAt(0).toUpperCase()}
-            </div>
-          )}
-          <NameBlock sig={sig} />
-          <ContactBlock sig={sig} />
-        </div>
-        <SocialBlock sig={sig} />
-      </div>
-    );
-  }
-
-  // Plantilla 6 - Visual Lateral (tarjetas internas)
-  if (templateId === 'visual-beside') {
-    return (
-      <div style={{ ...containerStyle, display: 'flex', gap: 16, background: `linear-gradient(90deg, ${sig.bgColor} 0%, ${sig.bgColor}dd 100%)` }}>
-        <div style={{ flexShrink: 0 }}>
-          {sig.photoUrl ? (
-            <PhotoImage photoUrl={sig.photoUrl} size={photoSize} borderColor={sig.accentColor} />
-          ) : (
-            <div style={{ width: photoSize, height: photoSize, borderRadius: '50%', background: sig.accentColor + '20', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: photoSize / 2.5, color: sig.accentColor, border: `3px solid ${sig.accentColor}` }}>
-              {(sig.name || 'J').charAt(0).toUpperCase()}
-            </div>
-          )}
-        </div>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={{ background: sig.textColor + '08', padding: '8px 12px', borderRadius: 6, borderLeft: `3px solid ${sig.accentColor}` }}>
-            <NameBlock sig={sig} />
-          </div>
-          <div style={{ background: sig.textColor + '05', padding: '8px 12px', borderRadius: 6 }}>
-            <ContactBlock sig={sig} />
-          </div>
-        </div>
-        {sig.logoUrl && (
-          <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
-            <LogoImageComp logoUrl={sig.logoUrl} size={logoSize} />
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // Plantilla 7 - Sectorial Bloques (secciones diferenciadas)
+  // Special cases for complex templates
   if (templateId === 'sectoral-blocks') {
     return (
-      <div style={{ ...containerStyle, padding: 0, overflow: 'hidden' }}>
+      <div style={{ ...dynamicContainerStyle, ...styles.container }}>
         <div style={{ display: 'flex' }}>
           <div style={{ flex: 1, padding: '16px 16px 8px', background: sig.textColor + '06' }}>
-            {sig.photoUrl ? (
-              <PhotoImage photoUrl={sig.photoUrl} size={50} borderColor={sig.accentColor} />
-            ) : (
-              <div style={{ width: 50, height: 50, borderRadius: '50%', background: sig.accentColor + '30', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, color: sig.accentColor }}>
-                {(sig.name || 'J').charAt(0).toUpperCase()}
+            {elements.find(e => e.id === 'photo') && (
+              <div key="photo">
+                {sig.photoUrl ? (
+                  <PhotoImage photoUrl={sig.photoUrl} size={Number(photoSize)} borderColor={sig.accentColor} />
+                ) : (
+                  <div style={styles.photoPlaceholder}>
+                    {(sig.name || 'J').charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <div style={{ fontSize: sig.fontSize + 2, fontWeight: 'bold', color: sig.textColor, marginTop: 6 }}>{sig.name || 'Tu Nombre'}</div>
+                {sig.title && <div style={{ fontSize: sig.fontSize, color: sig.accentColor }}>{sig.title}</div>}
               </div>
             )}
-            <div style={{ fontSize: sig.fontSize + 2, fontWeight: 'bold', color: sig.textColor, marginTop: 6 }}>{sig.name || 'Tu Nombre'}</div>
-            {sig.title && <div style={{ fontSize: sig.fontSize, color: sig.accentColor }}>{sig.title}</div>}
           </div>
-          <div style={{ width: 4, background: sig.accentColor }} />
+           <div style={{ width: 4, background: sig.accentColor }} />
           <div style={{ flex: 1, padding: '16px 16px 8px', background: sig.textColor + '03' }}>
-            <ContactBlock sig={sig} />
+            {renderContactBlock(sig)}
           </div>
           <div style={{ width: 4, background: sig.accentColor }} />
           <div style={{ flex: 1, padding: '16px 16px 8px', background: sig.textColor + '06' }}>
-            {sig.logoUrl ? (
-              <LogoImageComp logoUrl={sig.logoUrl} size={logoSize} />
-            ) : (
-              sig.company && <div style={{ fontSize: sig.fontSize - 1, color: sig.textColor, fontWeight: 500 }}>{sig.company}</div>
+            {sig.logoConfig?.show && sig.logoConfig?.url && (
+              <div style={{ marginTop: 8 }}><LogoImageComp sig={sig} /></div>
+            )}
+            {!sig.logoConfig?.url && sig.company && (
+              <div style={{ fontSize: sig.fontSize - 1, color: sig.textColor, fontWeight: 500 }}>{sig.company}</div>
             )}
           </div>
         </div>
-        {(sig.linkedin || sig.twitter) && (
-          <div style={{ padding: '8px 16px', background: sig.textColor + '03', display: 'flex', gap: 12, fontSize: sig.fontSize - 2 }}>
-            {sig.linkedin && <span style={{ color: sig.linkColor }}>LinkedIn</span>}
-            {sig.twitter && <span style={{ color: sig.linkColor }}>Twitter</span>}
-          </div>
-        )}
+        {renderSocialBlock(sig)}
       </div>
     );
   }
 
-  // Plantilla 8 - Sectorial Grid (2x2 grid layout)
   if (templateId === 'sectoral-grid') {
     return (
-      <div style={{ ...containerStyle, background: `linear-gradient(135deg, ${sig.bgColor} 0%, ${sig.bgColor}ee 100%)` }}>
+      <div style={{ ...dynamicContainerStyle, ...styles.container }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
           <div style={{ padding: 16, background: sig.accentColor + '15', borderRadius: sig.borderRadius, textAlign: 'center' }}>
             {sig.photoUrl ? (
-              <PhotoImage photoUrl={sig.photoUrl} size={70} borderColor={sig.accentColor} />
+              <PhotoImage photoUrl={sig.photoUrl} size={Number(photoSize)} borderColor={sig.accentColor} />
             ) : (
-              <div style={{ width: 70, height: 70, borderRadius: '50%', background: sig.accentColor + '30', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, color: sig.accentColor, margin: '0 auto' }}>
+              <div style={styles.photoPlaceholder}>
                 {(sig.name || 'J').charAt(0).toUpperCase()}
               </div>
             )}
@@ -411,46 +759,41 @@ export function renderFlexibleSignature(sig: EmailSignature, width: number, sele
             {sig.title && <div style={{ fontSize: sig.fontSize, color: sig.accentColor }}>{sig.title}</div>}
           </div>
           <div style={{ padding: 16, background: sig.accentColor + '10', borderRadius: sig.borderRadius }}>
-            <div style={{ fontSize: sig.fontSize - 1, color: sig.textColor }}>
-              {sig.email && <div style={{ marginBottom: 4 }}>✉️ <span style={{ color: sig.linkColor }}>{sig.email}</span></div>}
-              {sig.phone && <div style={{ marginBottom: 4 }}>📞 <span style={{ color: sig.linkColor }}>{sig.phone}</span></div>}
-              {sig.website && <div>🌐 <span style={{ color: sig.linkColor }}>{sig.website}</span></div>}
-            </div>
+            {renderContactBlock(sig)}
           </div>
           <div style={{ padding: 16, background: sig.accentColor + '10', borderRadius: sig.borderRadius, gridColumn: 'span 2', textAlign: 'center' }}>
             {sig.company && <div style={{ fontSize: sig.fontSize, color: sig.textColor, fontWeight: 600 }}>{sig.company}</div>}
-            {sig.logoUrl && <div style={{ marginTop: 8 }}><LogoImageComp logoUrl={sig.logoUrl} size={logoSize} /></div>}
+            {sig.logoConfig?.show && sig.logoConfig?.url && <div style={{ marginTop: 8 }}><LogoImageComp sig={sig} /></div>}
           </div>
         </div>
-        <SocialBlock sig={sig} />
+        {renderSocialBlock(sig)}
       </div>
     );
   }
 
-  // Plantilla 9 - Corporate Strict (Outlook-compatible, table-based look)
   if (templateId === 'corporate-strict') {
     return (
-      <div style={{ ...containerStyle, background: sig.bgColor, borderLeft: `6px solid ${sig.accentColor}` }}>
+      <div style={{ ...dynamicContainerStyle, ...styles.container }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'Arial, sans-serif' }}>
           <tbody>
             <tr>
-              <td style={{ verticalAlign: 'top', padding: '8px', width: photoSize + 16 }}>
+              <td style={{ verticalAlign: 'top', padding: '8px', width: Number(photoSize) + 16 }}>
                 {sig.photoUrl ? (
-                  <PhotoImage photoUrl={sig.photoUrl} size={photoSize} borderColor={sig.accentColor} />
+                  <PhotoImage photoUrl={sig.photoUrl} size={Number(photoSize)} borderColor={sig.accentColor} />
                 ) : (
-                  <div style={{ width: photoSize, height: photoSize, background: sig.accentColor + '20', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: photoSize / 2.5, color: sig.accentColor, fontWeight: 'bold' }}>
+                  <div style={styles.photoPlaceholder}>
                     {(sig.name || 'J').charAt(0).toUpperCase()}
                   </div>
                 )}
               </td>
               <td style={{ verticalAlign: 'top', padding: '8px', borderLeft: `2px solid ${sig.accentColor}30` }}>
-                <NameBlock sig={sig} />
-                <ContactBlock sig={sig} />
-                <SocialBlock sig={sig} />
+                {renderNameBlock(sig)}
+                {renderContactBlock(sig)}
+                {renderSocialBlock(sig)}
               </td>
-              {sig.logoUrl && (
-                <td style={{ verticalAlign: 'top', padding: '8px', width: logoSize + 16, textAlign: 'right' }}>
-                  <LogoImageComp logoUrl={sig.logoUrl} size={logoSize} />
+              {sig.logoConfig?.show && sig.logoConfig?.url && (
+                <td style={{ verticalAlign: 'top', padding: '8px', width: (sig.logoConfig?.width || 60) + 16, textAlign: 'right' }}>
+                  <LogoImageComp sig={sig} />
                 </td>
               )}
             </tr>
@@ -460,331 +803,179 @@ export function renderFlexibleSignature(sig: EmailSignature, width: number, sele
     );
   }
 
-  // Plantilla 10 - Corporate Modern (gradient with badges)
-  if (templateId === 'corporate-modern') {
+  // Minimal Clean: Elegant horizontal layout with vertical divider
+  if (templateId === 'minimal-clean') {
     return (
-      <div style={{ ...containerStyle, background: `linear-gradient(90deg, ${sig.accentColor}15 0%, ${sig.bgColor} 100%)`, border: `1px solid ${sig.accentColor}30` }}>
+      <div style={{ ...dynamicContainerStyle, ...styles.container }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+          {sig.photoUrl ? (
+            <PhotoImage photoUrl={sig.photoUrl} size={Number(photoSize)} borderColor={sig.accentColor} />
+          ) : (
+            <div style={styles.photoPlaceholder}>
+              {(sig.name || 'J').charAt(0).toUpperCase()}
+            </div>
+          )}
+          <div style={{ width: 1, height: 80, background: `${sig.accentColor}20` }} />
+          <div style={{ flex: 1 }}>
+            {renderNameBlock(sig)}
+            <div style={{ marginTop: 12 }}>
+              {renderContactBlock(sig)}
+            </div>
+            {renderSocialBlock(sig)}
+          </div>
+          {sig.logoConfig?.show && sig.logoConfig?.url && (
+            <div style={{ marginLeft: 'auto' }}><LogoImageComp sig={sig} /></div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Minimal Dark: Glassmorphism effect with glowing accent
+  if (templateId === 'minimal-dark') {
+    const accentGlow = sig.darkMode ? `0 0 15px ${sig.accentColor}40` : `0 4px 15px ${sig.accentColor}20`;
+    return (
+      <div style={{ ...dynamicContainerStyle, ...styles.container }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-          {sig.photoUrl ? (
-            <PhotoImage photoUrl={sig.photoUrl} size={photoSize} borderColor={sig.accentColor} />
-          ) : (
-            <div style={{ width: photoSize, height: photoSize, borderRadius: '50%', background: sig.accentColor + '25', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: photoSize / 2.5, color: sig.accentColor, border: `3px solid ${sig.accentColor}` }}>
-              {(sig.name || 'J').charAt(0).toUpperCase()}
-            </div>
-          )}
-          <div style={{ flex: 1 }}>
-            <NameBlock sig={sig} />
-            <ContactBlock sig={sig} />
-          </div>
-          {sig.logoUrl && <LogoImageComp logoUrl={sig.logoUrl} size={logoSize} />}
-        </div>
-        <SocialBlock sig={sig} />
-      </div>
-    );
-  }
-
-  // Plantilla 11 - Elegant Serif (serif typography with decorative ornament)
-  if (templateId === 'elegant-serif') {
-    return (
-      <div style={{ ...containerStyle, background: sig.bgColor, fontFamily: "'Georgia', 'Times New Roman', serif", textAlign: 'center' }}>
-        <div style={{ borderTop: `3px double ${sig.accentColor}`, paddingTop: 16, marginBottom: 16 }}>
-          {sig.photoUrl ? (
-            <PhotoImage photoUrl={sig.photoUrl} size={photoSize} borderColor={sig.accentColor} />
-          ) : (
-            <div style={{ width: photoSize, height: photoSize, borderRadius: '50%', background: sig.accentColor + '20', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: photoSize / 2.5, color: sig.accentColor, margin: '0 auto', border: `2px double ${sig.accentColor}` }}>
-              {(sig.name || 'J').charAt(0).toUpperCase()}
-            </div>
-          )}
-        </div>
-        <NameBlock sig={sig} />
-        <ContactBlock sig={sig} />
-        <SocialBlock sig={sig} />
-      </div>
-    );
-  }
-
-  // Plantilla 12 - Tech Startup (vibrant colors with geometric shapes)
-  if (templateId === 'tech-startup') {
-    return (
-      <div style={{ ...containerStyle, background: sig.bgColor, position: 'relative', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', top: -20, right: -20, width: 100, height: 100, background: sig.accentColor + '20', borderRadius: '50%', zIndex: 0 }} />
-        <div style={{ position: 'absolute', bottom: -30, left: -30, width: 80, height: 80, background: sig.accentColor + '15', borderRadius: 16, transform: 'rotate(45deg)', zIndex: 0 }} />
-        <div style={{ position: 'relative', zIndex: 1, display: 'flex', gap: 20, alignItems: 'center' }}>
-          {sig.photoUrl ? (
-            <PhotoImage photoUrl={sig.photoUrl} size={photoSize} borderColor={sig.accentColor} />
-          ) : (
-            <div style={{ width: photoSize, height: photoSize, background: sig.accentColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: photoSize / 2.5, color: '#fff', borderRadius: 12 }}>
-              {(sig.name || 'J').charAt(0).toUpperCase()}
-            </div>
-          )}
-          <div style={{ flex: 1 }}>
-            <NameBlock sig={sig} />
-          </div>
-          {sig.logoUrl && <LogoImageComp logoUrl={sig.logoUrl} size={logoSize} />}
-        </div>
-        <ContactBlock sig={sig} />
-        <SocialBlock sig={sig} />
-      </div>
-    );
-  }
-
-  // Plantilla 13 - Card Shadow (elevated content with soft shadow)
-  if (templateId === 'card-shadow') {
-    return (
-      <div style={{ ...containerStyle, background: 'transparent', padding: 0 }}>
-        <div style={{ background: sig.bgColor, borderRadius: sig.borderRadius, boxShadow: '0 4px 20px rgba(0,0,0,0.1), 0 1px 3px rgba(0,0,0,0.06)', padding: 24 }}>
-          <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
+          <div style={{ position: 'relative' }}>
             {sig.photoUrl ? (
-              <PhotoImage photoUrl={sig.photoUrl} size={photoSize} borderColor={sig.accentColor} />
+              <PhotoImage photoUrl={sig.photoUrl} size={Number(photoSize)} borderColor={sig.accentColor} />
             ) : (
-              <div style={{ width: photoSize, height: photoSize, borderRadius: 12, background: sig.accentColor + '25', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: photoSize / 2.5, color: sig.accentColor, fontWeight: 'bold' }}>
+              <div style={{ ...styles.photoPlaceholder, boxShadow: accentGlow }}>
                 {(sig.name || 'J').charAt(0).toUpperCase()}
               </div>
             )}
-            <div style={{ flex: 1 }}>
-              <NameBlock sig={sig} />
-            </div>
-            {sig.logoUrl && <LogoImageComp logoUrl={sig.logoUrl} size={logoSize} />}
+            <div style={{ position: 'absolute', bottom: 0, right: 0, width: 12, height: 12, background: '#10b981', borderRadius: '50%', border: `2px solid ${sig.bgColor}` }} />
           </div>
-          <ContactBlock sig={sig} />
-          <SocialBlock sig={sig} />
-        </div>
-      </div>
-    );
-  }
-
-  // Plantilla 14 - Legal Formal (extreme minimalist, no decorations)
-  if (templateId === 'legal-formal') {
-    return (
-      <div style={{ ...containerStyle, background: sig.bgColor, borderBottom: `2px solid ${sig.textColor}` }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-          <div>
-            <NameBlock sig={sig} />
-          </div>
-          {sig.logoUrl && <LogoImageComp logoUrl={sig.logoUrl} size={logoSize} />}
-        </div>
-        <ContactBlock sig={sig} />
-        <SocialBlock sig={sig} />
-      </div>
-    );
-  }
-
-  // Plantilla 15 - Dark Gradient (premium dark with gradient effect)
-  if (templateId === 'dark-gradient') {
-    return (
-      <div style={{ ...containerStyle, background: `linear-gradient(135deg, ${sig.bgColor} 0%, #1e293b 100%)`, color: sig.textColor }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-          {sig.photoUrl ? (
-            <PhotoImage photoUrl={sig.photoUrl} size={photoSize} borderColor={sig.accentColor} />
-          ) : (
-            <div style={{ width: photoSize, height: photoSize, borderRadius: '50%', border: `3px solid ${sig.accentColor}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: photoSize / 2.5, color: sig.accentColor }}>
-              {(sig.name || 'J').charAt(0).toUpperCase()}
-            </div>
-          )}
           <div style={{ flex: 1 }}>
-            <NameBlock sig={sig} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              {renderNameBlock(sig)}
+              {sig.logoConfig?.show && sig.logoConfig?.url && <LogoImageComp sig={sig} />}
+            </div>
+            <div style={{ height: 1, background: `linear-gradient(90deg, ${sig.accentColor}60, transparent)`, margin: '12px 0' }} />
+            {renderContactBlock(sig)}
+            <div style={{ marginTop: 8 }}>
+              {renderSocialBlock(sig)}
+            </div>
           </div>
-          {sig.logoUrl && <LogoImageComp logoUrl={sig.logoUrl} size={logoSize} />}
         </div>
-        <ContactBlock sig={sig} />
-        <SocialBlock sig={sig} />
       </div>
     );
   }
 
-  // Plantilla 16 - Neon Glow (neon effect for creative professionals)
-  if (templateId === 'neon-glow') {
+  // Hierarchical Top: Centered with professional hierarchy
+  if (templateId === 'hierarchical-top') {
     return (
-      <div style={{ ...containerStyle, background: '#0a0a0a', border: `2px solid ${sig.accentColor}`, boxShadow: `0 0 20px ${sig.accentColor}40, inset 0 0 20px ${sig.accentColor}10` }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-          {sig.photoUrl ? (
-            <div style={{ padding: 3, border: `2px solid ${sig.accentColor}`, borderRadius: '50%', boxShadow: `0 0 10px ${sig.accentColor}` }}>
-              <PhotoImage photoUrl={sig.photoUrl} size={photoSize} borderColor={sig.accentColor} />
-            </div>
-          ) : (
-            <div style={{ width: photoSize, height: photoSize, borderRadius: '50%', border: `2px solid ${sig.accentColor}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: photoSize / 2.5, color: sig.accentColor, boxShadow: `0 0 15px ${sig.accentColor}60` }}>
-              {(sig.name || 'J').charAt(0).toUpperCase()}
-            </div>
+      <div style={{ ...dynamicContainerStyle, ...styles.container }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+          {sig.logoConfig?.show && sig.logoConfig?.url && (
+            <div style={{ marginBottom: 20 }}><LogoImageComp sig={sig} /></div>
           )}
-          <div style={{ flex: 1 }}>
-            <NameBlock sig={sig} />
-          </div>
-        </div>
-        <ContactBlock sig={sig} />
-        <SocialBlock sig={sig} />
-      </div>
-    );
-  }
-
-  // Plantilla 16 - Neon Glow (neon effect for creative professionals)
-  if (templateId === 'neon-glow') {
-    return (
-      <div style={{ ...containerStyle, background: '#0a0a0a', border: `2px solid ${sig.accentColor}`, boxShadow: `0 0 20px ${sig.accentColor}40, inset 0 0 20px ${sig.accentColor}10` }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-          {sig.photoUrl ? (
-            <div style={{ padding: 3, border: `2px solid ${sig.accentColor}`, borderRadius: '50%', boxShadow: `0 0 10px ${sig.accentColor}` }}>
-              <PhotoImage photoUrl={sig.photoUrl} size={65} borderColor={sig.accentColor} />
-            </div>
-          ) : (
-            <div style={{ width: 70, height: 70, borderRadius: '50%', border: `2px solid ${sig.accentColor}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, color: sig.accentColor, boxShadow: `0 0 15px ${sig.accentColor}60` }}>
-              {(sig.name || 'J').charAt(0).toUpperCase()}
-            </div>
-          )}
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: sig.fontSize + 10, fontWeight: 'bold', color: sig.accentColor, textShadow: `0 0 10px ${sig.accentColor}` }}>{sig.name || 'Tu Nombre'}</div>
-            {sig.title && <div style={{ fontSize: sig.fontSize + 2, color: sig.textColor, fontWeight: 300, letterSpacing: 2 }}>{sig.title}</div>}
-            {sig.company && <div style={{ fontSize: sig.fontSize, color: sig.textColor, opacity: 0.8 }}>{sig.company}</div>}
-          </div>
-        </div>
-        <div style={{ marginTop: 16, fontSize: sig.fontSize, color: sig.textColor, display: 'flex', gap: 20 }}>
-          {sig.email && <span style={{ color: sig.accentColor }}>✉ {sig.email}</span>}
-          {sig.phone && <span>{sig.phone}</span>}
-        </div>
-        {(sig.linkedin || sig.twitter || sig.instagram) && (
-          <div style={{ marginTop: 12, display: 'flex', gap: 16, fontSize: sig.fontSize - 1 }}>
-            {sig.linkedin && <span style={{ color: sig.accentColor }}>LinkedIn</span>}
-            {sig.twitter && <span style={{ color: sig.accentColor }}>Twitter</span>}
-            {sig.instagram && <span style={{ color: sig.accentColor }}>Instagram</span>}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // Plantilla 17 - Minimalist Lines (clean with geometric lines)
-  if (templateId === 'minimalist-lines') {
-    return (
-      <div style={{ ...containerStyle, background: sig.bgColor }}>
-        <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ width: 40, height: 3, background: sig.accentColor, marginBottom: 12 }} />
-            <NameBlock sig={sig} />
-            <div style={{ width: 40, height: 1, background: sig.textColor + '30', margin: '12px 0' }} />
-            <ContactBlock sig={sig} />
-          </div>
-          {sig.photoUrl ? (
-            <PhotoImage photoUrl={sig.photoUrl} size={photoSize} borderColor={sig.accentColor} />
-          ) : (
-            sig.logoUrl && <LogoImageComp logoUrl={sig.logoUrl} size={logoSize} />
-          )}
-        </div>
-        <SocialBlock sig={sig} />
-      </div>
-    );
-  }
-
-  // Plantilla 18 - Professional Badge (compact with badge-style elements)
-  if (templateId === 'professional-badge') {
-    return (
-      <div style={{ ...containerStyle, background: `linear-gradient(135deg, ${sig.accentColor}08 0%, ${sig.bgColor} 100%)`, border: `1px solid ${sig.accentColor}20`, borderRadius: sig.borderRadius }}>
-        <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-          {sig.photoUrl ? (
-            <PhotoImage photoUrl={sig.photoUrl} size={photoSize} borderColor={sig.accentColor} />
-          ) : (
-            sig.logoUrl && <LogoImageComp logoUrl={sig.logoUrl} size={logoSize} />
-          )}
-          <div style={{ flex: 1 }}>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-              <span style={{ fontSize: sig.fontSize + 6, fontWeight: 'bold', color: sig.textColor }}>{sig.name || 'Tu Nombre'}</span>
-              {sig.title && <span style={{ background: sig.accentColor, color: '#fff', fontSize: sig.fontSize - 2, padding: '2px 8px', borderRadius: 4 }}>{sig.title}</span>}
-            </div>
-            {sig.company && <div style={{ fontSize: sig.fontSize, color: sig.textColor, opacity: 0.8 }}>{sig.company}</div>}
-            <ContactBlock sig={sig} />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Plantilla 19 - Color Block (bold color sections)
-  if (templateId === 'color-block') {
-    return (
-      <div style={{ ...containerStyle, background: sig.bgColor, padding: 0, overflow: 'hidden', borderRadius: sig.borderRadius }}>
-        <div style={{ background: sig.accentColor, padding: '16px 24px', color: '#fff' }}>
-          <NameBlock sig={sig} />
-        </div>
-        <div style={{ padding: 24 }}>
-          {sig.company && <div style={{ fontSize: sig.fontSize, color: sig.textColor, fontWeight: 600, marginBottom: 12 }}>{sig.company}</div>}
-          <ContactBlock sig={sig} />
-          <SocialBlock sig={sig} />
-        </div>
-      </div>
-    );
-  }
-
-  // Plantilla 20 - Floating Island (detached card with large shadow)
-  if (templateId === 'floating-island') {
-    return (
-      <div style={{ ...containerStyle, background: 'transparent', padding: 0 }}>
-        <div style={{ background: sig.bgColor, borderRadius: sig.borderRadius, boxShadow: '0 20px 60px rgba(0,0,0,0.15), 0 8px 20px rgba(0,0,0,0.1)', padding: 32 }}>
-          <div style={{ display: 'flex', gap: 24, alignItems: 'center', marginBottom: 20 }}>
+          <div style={{ position: 'relative', marginBottom: 16 }}>
             {sig.photoUrl ? (
-              <PhotoImage photoUrl={sig.photoUrl} size={photoSize} borderColor={sig.accentColor} />
+              <PhotoImage photoUrl={sig.photoUrl} size={100} borderColor={sig.accentColor} />
             ) : (
-              <div style={{ width: photoSize, height: photoSize, borderRadius: '50%', background: `linear-gradient(135deg, ${sig.accentColor}40, ${sig.accentColor}20)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: photoSize / 2.5, color: sig.accentColor, border: `4px solid ${sig.accentColor}` }}>
+              <div style={{ ...styles.photoPlaceholder, width: 100, height: 100 }}>
                 {(sig.name || 'J').charAt(0).toUpperCase()}
               </div>
             )}
-            <div>
-              <NameBlock sig={sig} />
-            </div>
           </div>
-          <ContactBlock sig={sig} />
-          <SocialBlock sig={sig} />
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: sig.fontSize + 8, fontWeight: 'bold', color: sig.textColor, letterSpacing: '-0.5px' }}>
+              {sig.name || 'Tu Nombre'}
+            </div>
+            {sig.title && (
+              <div style={{ fontSize: sig.fontSize + 2, color: sig.accentColor, fontWeight: 500, marginTop: 2, textTransform: 'uppercase', letterSpacing: '1px' }}>
+                {sig.title}
+              </div>
+            )}
+          </div>
+          <div style={{ width: 40, height: 2, background: sig.accentColor, marginBottom: 16 }} />
+          <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '8px 24px', fontSize: sig.fontSize }}>
+            {renderContactBlock(sig)}
+          </div>
+          <div style={{ marginTop: 16 }}>
+            {renderSocialBlock(sig)}
+          </div>
         </div>
       </div>
     );
   }
 
-  const order = sig.elementOrder.length > 0 ? sig.elementOrder : ['name', 'contact', 'social'];
-  
-  const flexDirection = sig.layout === 'horizontal' ? 'row' : 'column';
-  const justifyContent = sig.layout === 'centered' ? 'center' : (sig.logoPosition === 'right' ? 'flex-end' : 'flex-start');
-  const textAlign = sig.layout === 'centered' || sig.logoPosition === 'center' ? 'center' as const : 'left' as const;
-
-  if (sig.logoPosition === 'top' || sig.logoPosition === 'center') {
-    return (
-      <div style={{ ...containerStyle, textAlign }}>
-        {sig.logoUrl && (
-          <div style={{ marginBottom: 16, textAlign: 'center' }}>
-            <LogoImageComp logoUrl={sig.logoUrl} size={logoSize} />
-          </div>
-        )}
-        {order.filter(b => b !== 'logo').map((blockId) => (
-          <div key={blockId}>
-            {blockId === 'name' && <NameBlock sig={sig} />}
-            {blockId === 'contact' && <ContactBlock sig={sig} />}
-            {blockId === 'social' && <SocialBlock sig={sig} />}
-          </div>
-        ))}
-      </div>
-    );
-  }
-
+  // Generic rendering for remaining templates
   return (
-    <div style={{ ...containerStyle, display: 'flex', flexDirection, justifyContent, gap: 20, alignItems: 'flex-start' }}>
-      {sig.logoPosition === 'left' && sig.logoUrl && (
-        <div style={{ flexShrink: 0 }}>
-          <LogoImageComp logoUrl={sig.logoUrl} size={logoSize} />
-        </div>
-      )}
-      <div style={{ flex: 1, textAlign }}>
-        {order.filter(b => b !== 'logo').map((blockId) => (
-          <div key={blockId}>
-            {blockId === 'name' && <NameBlock sig={sig} />}
-            {blockId === 'contact' && <ContactBlock sig={sig} />}
-            {blockId === 'social' && <SocialBlock sig={sig} />}
-          </div>
-        ))}
-      </div>
-      {sig.logoPosition === 'right' && sig.logoUrl && (
-        <div style={{ flexShrink: 0 }}>
-          <LogoImageComp logoUrl={sig.logoUrl} size={logoSize} />
-        </div>
-      )}
+    <div style={{ ...dynamicContainerStyle, ...styles.container }}>
+      {elements.map(element => {
+        if (element.id === 'logo') return <LogoImageComp sig={sig} key="logo" />;
+        if (element.id === 'photo') {
+          return sig.photoUrl ? (
+            <PhotoImage photoUrl={sig.photoUrl} size={Number(photoSize)} borderColor={sig.accentColor} key="photo" />
+          ) : (
+            <div style={styles.photoPlaceholder} key="photo-placeholder">
+              {(sig.name || 'J').charAt(0).toUpperCase()}
+            </div>
+          );
+        }
+        if (element.id === 'content') {
+          return (
+            <div key="content" style={{ ...(layout.justify === 'space-between' ? { borderLeft: `3px solid ${sig.accentColor}`, paddingLeft: 20 } : {}), ...styles.contentBlock }}>
+              {renderNameBlock(sig)}
+              {renderContactBlock(sig)}
+              {renderSocialBlock(sig)}
+            </div>
+          );
+        }
+        return null;
+      })}
     </div>
   );
 }
+
+// ==================== MAIN RENDER FUNCTION ====================
+
+export function renderFlexibleSignature(sig: EmailSignature, width: number, selectedTemplate?: string): React.ReactNode {
+  // Apply dark mode colors if enabled
+  const colors = sig.darkMode ? getDarkModeColors(sig) : sig;
+
+  const containerStyle: React.CSSProperties = {
+    width,
+    maxWidth: '100%',
+    padding: 24,
+    background: colors.bgColor,
+    fontFamily: colors.fontFamily,
+    fontSize: colors.fontSize,
+    borderRadius: colors.borderRadius,
+    color: colors.textColor,
+  };
+
+  const templateId = selectedTemplate || '';
+
+  // Usar LayoutEngine para cálculo inteligente
+  const elements = buildElementList(colors);
+  const layoutRequest = {
+    containerWidth: width,
+    elements,
+    logoConfig: colors.logoConfig,
+    sig: colors,
+  };
+  const layout = calculateLayout(layoutRequest);
+
+  // Aplicar layout al container principal
+  const dynamicContainerStyle: React.CSSProperties = {
+    ...containerStyle,
+    display: 'flex',
+    flexDirection: layout.direction,
+    alignItems: layout.alignment,
+    justifyContent: layout.justify,
+    gap: layout.gap,
+    flexWrap: layout.wrap ? 'wrap' : 'nowrap',
+  };
+
+  // Renderizado usando GenericTemplateRenderer
+  return renderGenericTemplate(colors, templateId, elements, dynamicContainerStyle, layout);
+}
+
+// ==================== TEMPLATES CONFIG ====================
 
 export const signatureTemplates: SignatureTemplate[] = [
   {
@@ -792,7 +983,7 @@ export const signatureTemplates: SignatureTemplate[] = [
     name: 'Minimalista',
     description: 'Diseño limpio con foto de perfil y tipografía elegante',
     preview: '🟢👤🔵',
-    config: { bgColor: '#ffffff', textColor: '#2d2d2d', linkColor: '#2563eb', accentColor: '#2563eb', borderRadius: 12 },
+    config: { bgColor: '#ffffff', textColor: '#374151', linkColor: '#3b82f6', accentColor: '#3b82f6', borderRadius: 16 },
     defaultLayout: 'horizontal',
     defaultLogoPosition: 'left',
     formSections: ['basic', 'contact', 'social', 'style', 'structure'],
@@ -800,10 +991,10 @@ export const signatureTemplates: SignatureTemplate[] = [
   },
   {
     id: 'minimal-dark',
-    name: 'Oscuro',
-    description: 'Fondo oscuro elegante con foto de perfil y texto claro',
-    preview: '⚫👤⬛',
-    config: { bgColor: '#1a1a2e', textColor: '#e5e5e5', linkColor: '#60a5fa', accentColor: '#60a5fa', borderRadius: 16 },
+    name: 'Oscuro Premium',
+    description: 'Fondo oscuro elegante con acentos azules',
+    preview: '🌙👤✨',
+    config: { bgColor: '#0f172a', textColor: '#e2e8f0', linkColor: '#60a5fa', accentColor: '#60a5fa', borderRadius: 16 },
     defaultLayout: 'horizontal',
     defaultLogoPosition: 'right',
     formSections: ['basic', 'contact', 'social', 'style', 'structure'],
@@ -811,9 +1002,9 @@ export const signatureTemplates: SignatureTemplate[] = [
   },
   {
     id: 'hierarchical-top',
-    name: 'Corporativo',
-    description: 'Logo centrado arriba con foto de perfil y jerarquía visual clara',
-    preview: '⬜👤⬜',
+    name: 'Corporativo Clásico',
+    description: 'Logo centrado con jerarquía visual clara y gradiente sutil',
+    preview: '🏢👤📊',
     config: { bgColor: '#f8fafc', textColor: '#1e293b', linkColor: '#0f766e', accentColor: '#0f766e', borderRadius: 16 },
     defaultLayout: 'centered',
     defaultLogoPosition: 'top',
@@ -822,10 +1013,10 @@ export const signatureTemplates: SignatureTemplate[] = [
   },
   {
     id: 'hierarchical-sidebar',
-    name: 'Lateral',
-    description: 'Barra lateral accent con información organizada',
-    preview: '│👤│☎',
-    config: { bgColor: '#ffffff', textColor: '#334155', linkColor: '#7c3aed', accentColor: '#7c3aed', borderRadius: 8 },
+    name: 'Lateral Elegante',
+    description: 'Barra lateral púrpura con información organizada',
+    preview: '│👤│📞',
+    config: { bgColor: '#faf5ff', textColor: '#334155', linkColor: '#7c3aed', accentColor: '#7c3aed', borderRadius: 12 },
     defaultLayout: 'horizontal',
     defaultLogoPosition: 'left',
     formSections: ['basic', 'contact', 'social', 'style', 'structure'],
@@ -833,10 +1024,10 @@ export const signatureTemplates: SignatureTemplate[] = [
   },
   {
     id: 'visual-centered',
-    name: 'Centrado',
-    description: 'Logo grande centrado con diseño simétrico',
+    name: 'Centrado Dorado',
+    description: 'Logo grande centrado con diseño cálido y elegante',
     preview: '⬡👤⬡',
-    config: { bgColor: '#fef3c7', textColor: '#92400e', linkColor: '#d97706', accentColor: '#d97706', borderRadius: 16 },
+    config: { bgColor: '#fffbeb', textColor: '#78350f', linkColor: '#d97706', accentColor: '#d97706', borderRadius: 20 },
     defaultLayout: 'centered',
     defaultLogoPosition: 'top',
     formSections: ['basic', 'contact', 'social', 'style', 'structure'],
@@ -844,155 +1035,205 @@ export const signatureTemplates: SignatureTemplate[] = [
   },
   {
     id: 'visual-beside',
-    name: 'Visual Lateral',
-    description: 'Logo lateral con tarjetas internas',
+    name: 'Visual Azul',
+    description: 'Diseño lateral con tarjetas y acentos azules',
     preview: '👤▢▢',
-    config: { bgColor: '#f0f9ff', textColor: '#0c4a6e', linkColor: '#0284c7', accentColor: '#0284c7', borderRadius: 12 },
+    config: { bgColor: '#eff6ff', textColor: '#1e40af', linkColor: '#2563eb', accentColor: '#2563eb', borderRadius: 12 },
     defaultLayout: 'horizontal',
     defaultLogoPosition: 'left',
     formSections: ['basic', 'contact', 'social', 'style', 'structure'],
+    category: 'creative',
   },
   {
     id: 'sectoral-blocks',
-    name: 'Sectorial Bloques',
-    description: 'Secciones diferenciadas con colores alternados',
-    preview: '▢│▢│▢',
-    config: { bgColor: '#ffffff', textColor: '#1f2937', linkColor: '#059669', accentColor: '#059669', borderRadius: 8 },
+    name: 'Bloques Profesional',
+    description: 'Secciones diferenciadas con esquema verde',
+    preview: '🟩│🟦│🟩',
+    config: { bgColor: '#f0fdf4', textColor: '#166534', linkColor: '#16a34a', accentColor: '#16a34a', borderRadius: 10 },
     defaultLayout: 'vertical',
     defaultLogoPosition: 'left',
     formSections: ['basic', 'contact', 'social', 'style', 'structure'],
+    category: 'corporate',
   },
   {
     id: 'sectoral-grid',
-    name: 'Sectorial Grid',
-    description: 'Grid de 2x2 para campos de información',
+    name: 'Grid Púrpura',
+    description: 'Grid de 2x2 con acentos púrpura modernos',
     preview: '▣▣',
-    config: { bgColor: '#fafafa', textColor: '#374151', linkColor: '#7c3aed', accentColor: '#7c3aed', borderRadius: 12 },
+    config: { bgColor: '#faf5ff', textColor: '#374151', linkColor: '#7c3aed', accentColor: '#7c3aed', borderRadius: 12 },
     defaultLayout: 'horizontal',
     defaultLogoPosition: 'left',
     formSections: ['basic', 'contact', 'social', 'style', 'structure'],
+    category: 'corporate',
   },
   {
     id: 'corporate-strict',
-    name: 'Corporativo Estricto',
-    description: 'Diseño formal compatible con Outlook',
-    preview: '═╪═',
+    name: 'Corporativo Navy',
+    description: 'Diseño formal azul marino compatible con Outlook',
+    preview: '🏛️📧📞',
     config: { bgColor: '#1e3a5f', textColor: '#ffffff', linkColor: '#93c5fd', accentColor: '#93c5fd', borderRadius: 0 },
     defaultLayout: 'horizontal',
     defaultLogoPosition: 'left',
     formSections: ['basic', 'contact', 'social', 'style', 'structure'],
+    category: 'corporate',
   },
   {
     id: 'corporate-modern',
-    name: 'Corporativo Moderno',
-    description: 'Estilo corporativo con gradiente y badges',
+    name: 'Moderno Azul',
+    description: 'Corporativo con gradiente azul y sombras elegantes',
     preview: '▬═══',
-    config: { bgColor: '#ffffff', textColor: '#1f2937', linkColor: '#2563eb', accentColor: '#2563eb', borderRadius: 16 },
+    config: { bgColor: '#eff6ff', textColor: '#1e293b', linkColor: '#2563eb', accentColor: '#2563eb', borderRadius: 16 },
     defaultLayout: 'horizontal',
     defaultLogoPosition: 'left',
     formSections: ['basic', 'contact', 'social', 'style', 'structure'],
+    category: 'corporate',
   },
   {
     id: 'elegant-serif',
-    name: 'Elegante Serif',
-    description: 'Tipografía serif con ornamento decorativo',
-    preview: '▬═══',
-    config: { bgColor: '#faf8f5', textColor: '#2d2d2d', linkColor: '#8b4513', accentColor: '#8b4513', borderRadius: 4 },
+    name: 'Elegante Clásico',
+    description: 'Tipografía serif con bordó y ornamento',
+    preview: '📜👤✒️',
+    config: { bgColor: '#fefefe', textColor: '#1a1a1a', linkColor: '#991b1b', accentColor: '#991b1b', borderRadius: 4 },
     defaultLayout: 'centered',
     defaultLogoPosition: 'top',
     formSections: ['basic', 'contact', 'social', 'style', 'structure'],
+    category: 'elegant',
   },
   {
     id: 'tech-startup',
-    name: 'Tech Startup',
-    description: 'Colores vibrantes con formas geométricas',
-    preview: '◻◻◻',
-    config: { bgColor: '#f0fdf4', textColor: '#166534', linkColor: '#16a34a', accentColor: '#16a34a', borderRadius: 16 },
+    name: 'Tech Verde',
+    description: 'Diseño tech con verde vibrante y monospace',
+    preview: '💻👤🚀',
+    config: { bgColor: '#f0fdf4', textColor: '#14532d', linkColor: '#16a34a', accentColor: '#16a34a', borderRadius: 16 },
     defaultLayout: 'horizontal',
     defaultLogoPosition: 'left',
     formSections: ['basic', 'contact', 'social', 'style', 'structure'],
+    category: 'tech',
   },
   {
     id: 'card-shadow',
-    name: 'Tarjeta Sombra',
-    description: 'Contenido elevado con sombra suave',
+    name: 'Tarjeta Indigo',
+    description: 'Tarjeta elevada con sombra suave e índigo',
     preview: '▣═══',
-    config: { bgColor: '#f5f5f5', textColor: '#333333', linkColor: '#6366f1', accentColor: '#6366f1', borderRadius: 12 },
+    config: { bgColor: '#eef2ff', textColor: '#312e81', linkColor: '#6366f1', accentColor: '#6366f1', borderRadius: 16 },
     defaultLayout: 'vertical',
     defaultLogoPosition: 'left',
     formSections: ['basic', 'contact', 'social', 'style', 'structure'],
+    category: 'modern',
   },
   {
     id: 'legal-formal',
-    name: 'Legal Formal',
-    description: 'Minimalista extremo sin decoraciones',
-    preview: '════',
+    name: 'Legal Clásico',
+    description: 'Minimalista con serif para entornos legales',
+    preview: '⚖️📝🏛️',
     config: { bgColor: '#ffffff', textColor: '#000000', linkColor: '#000000', accentColor: '#000000', borderRadius: 0 },
     defaultLayout: 'horizontal',
     defaultLogoPosition: 'left',
     formSections: ['basic', 'contact', 'social', 'style', 'structure'],
+    category: 'formal',
   },
   {
     id: 'dark-gradient',
-    name: 'Dark Gradient',
-    description: 'Fondo oscuro con efecto degradado premium',
-    preview: '▒▒▒',
-    config: { bgColor: '#0f172a', textColor: '#f1f5f9', linkColor: '#38bdf8', accentColor: '#38bdf8', borderRadius: 16 },
+    name: 'Dark Slate',
+    description: 'Fondo oscuro con degradado gris azulado',
+    preview: '🌑▒🌑',
+    config: { bgColor: '#1e293b', textColor: '#f1f5f9', linkColor: '#38bdf8', accentColor: '#38bdf8', borderRadius: 16 },
     defaultLayout: 'horizontal',
     defaultLogoPosition: 'left',
     formSections: ['basic', 'contact', 'social', 'style', 'structure'],
+    category: 'premium',
   },
   {
     id: 'neon-glow',
-    name: 'Neon Glow',
-    description: 'Efecto neón para creativos y tech',
-    preview: '✦✦✦',
+    name: 'Neon Cyber',
+    description: 'Efecto neón verde para diseño cyberpunk',
+    preview: '💚🌟💚',
     config: { bgColor: '#0a0a0a', textColor: '#f1f5f9', linkColor: '#00ffaa', accentColor: '#00ffaa', borderRadius: 12 },
     defaultLayout: 'horizontal',
     defaultLogoPosition: 'left',
     formSections: ['basic', 'contact', 'social', 'style', 'structure'],
+    category: 'creative',
   },
   {
     id: 'minimalist-lines',
-    name: 'Líneas Minimalistas',
-    description: 'Diseño ultra limpio con líneas geométricas',
+    name: 'Líneas Azul',
+    description: 'Diseño limpio con líneas azules geométricas',
     preview: '─ ─ ─',
-    config: { bgColor: '#ffffff', textColor: '#1f2937', linkColor: '#6b7280', accentColor: '#3b82f6', borderRadius: 0 },
+    config: { bgColor: '#ffffff', textColor: '#1e293b', linkColor: '#3b82f6', accentColor: '#3b82f6', borderRadius: 0 },
     defaultLayout: 'horizontal',
     defaultLogoPosition: 'right',
     formSections: ['basic', 'contact', 'social', 'style', 'structure'],
+    category: 'minimal',
   },
   {
     id: 'professional-badge',
-    name: 'Badge Profesional',
-    description: 'Badges de identificación y foto compacta',
-    preview: '🏷👤',
-    config: { bgColor: '#f8fafc', textColor: '#1e293b', linkColor: '#3b82f6', accentColor: '#3b82f6', borderRadius: 10 },
+    name: 'Badge Azul',
+    description: 'Badge profesional con foto compacta y acento azul',
+    preview: '🏷👤🎫',
+    config: { bgColor: '#eff6ff', textColor: '#1e293b', linkColor: '#3b82f6', accentColor: '#3b82f6', borderRadius: 12 },
     defaultLayout: 'horizontal',
     defaultLogoPosition: 'left',
     formSections: ['basic', 'contact', 'social', 'style', 'structure'],
+    category: 'professional',
   },
   {
     id: 'color-block',
-    name: 'Color Block',
-    description: 'Bloques de color bold para marcas fuertes',
-    preview: '█░█',
+    name: 'Color Rojo',
+    description: 'Bloques de color rojo bold para marcas fuertes',
+    preview: '🔴░🔴',
     config: { bgColor: '#ffffff', textColor: '#1f2937', linkColor: '#dc2626', accentColor: '#dc2626', borderRadius: 8 },
     defaultLayout: 'vertical',
     defaultLogoPosition: 'left',
     formSections: ['basic', 'contact', 'social', 'style', 'structure'],
+    category: 'bold',
   },
-  {
+    {
     id: 'floating-island',
-    name: 'Isla Flotante',
-    description: 'Tarjeta elevada con sombra profunda',
+    name: 'Isla Púrpura',
+    description: 'Tarjeta flotante con sombra profunda y púrpura',
     preview: '▣━▣',
-    config: { bgColor: '#ffffff', textColor: '#1f2937', linkColor: '#8b5cf6', accentColor: '#8b5cf6', borderRadius: 20 },
+    config: { bgColor: '#faf5ff', textColor: '#1f2937', linkColor: '#8b5cf6', accentColor: '#8b5cf6', borderRadius: 20 },
     defaultLayout: 'horizontal',
     defaultLogoPosition: 'left',
     formSections: ['basic', 'contact', 'social', 'style', 'structure'],
+    category: 'modern',
+  },
+  {
+    id: 'inline-compact',
+    name: 'Inline Compact',
+    description: 'Diseño ultra compacto en una línea para footers',
+    preview: '─┤─┤─',
+    config: { bgColor: '#ffffff', textColor: '#374151', linkColor: '#6b7280', accentColor: '#3b82f6', borderRadius: 8 },
+    defaultLayout: 'horizontal',
+    defaultLogoPosition: 'left',
+    formSections: ['basic', 'contact', 'social', 'style', 'structure'],
+    category: 'minimal',
+  },
+  {
+    id: 'banner-top',
+    name: 'Banner Header',
+    description: 'Encabezado con banner de color y contenido horizontal',
+    preview: '▀▀▀',
+    config: { bgColor: '#ffffff', textColor: '#1e293b', linkColor: '#7c3aed', accentColor: '#7c3aed', borderRadius: 16 },
+    defaultLayout: 'horizontal',
+    defaultLogoPosition: 'left',
+    formSections: ['basic', 'contact', 'social', 'style', 'structure'],
+    category: 'corporate',
+  },
+  {
+    id: 'split-two-tone',
+    name: 'Split Two-Tone',
+    description: 'Fondo dividido con dos colores contrastantes',
+    preview: '◧◧◧',
+    config: { bgColor: '#f8fafc', textColor: '#1e293b', linkColor: '#3b82f6', accentColor: '#3b82f6', borderRadius: 12 },
+    defaultLayout: 'horizontal',
+    defaultLogoPosition: 'left',
+    formSections: ['basic', 'contact', 'social', 'style', 'structure'],
+    category: 'modern',
   },
 ];
+
+// ==================== DEFAULTS ====================
 
 export const defaultSignature: EmailSignature = {
   name: 'Juan Pérez',
@@ -1021,7 +1262,7 @@ export const defaultSignature: EmailSignature = {
   layout: 'horizontal',
   elementOrder: ['logo', 'name', 'contact', 'social'],
   iconStyle: 'emoji',
-  visibleFields: {
+   visibleFields: {
     email: true,
     phone: true,
     website: true,
@@ -1032,9 +1273,26 @@ export const defaultSignature: EmailSignature = {
     facebook: false,
     skype: false,
   },
-  photoSize: 80,
-  logoSize: 60,
+  darkMode: false,
+  logoConfig: {
+    url: '',
+    width: 200,
+    height: 60,
+    lockAspectRatio: true,
+    objectFit: 'contain',
+    borderRadius: 0,
+    padding: 0,
+    position: 'left',
+    alignment: 'center',
+    altText: 'Company Logo',
+    linkUrl: '',
+    show: true,
+    maxWidthForExport: 600,
+    quality: 1,
+  },
 };
+
+// ==================== LAYOUT PRESETS ====================
 
 export const ELEMENT_OPTIONS = [
   { id: 'logo', label: 'Logo' },

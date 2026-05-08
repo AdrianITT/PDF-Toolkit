@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import type { PdfFile, PdfPage } from '../types';
 import { usePdfThumbnails } from './usePdfThumbnails';
+import { useDropzone } from 'react-dropzone';
 
 export function useFileUpload(onFilesAdded: (files: PdfFile[]) => void) {
   const { getPageCount, generateAllThumbnails } = usePdfThumbnails();
@@ -75,6 +76,3 @@ export function useFileUpload(onFilesAdded: (files: PdfFile[]) => void) {
     error,
   };
 }
-
-// Import useDropzone
-import { useDropzone } from 'react-dropzone';

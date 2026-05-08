@@ -21,6 +21,16 @@ interface PdfToolFile {
 
 type ToolMode = 'compress' | 'split' | 'rotate' | 'protect' | 'delete';
 
+type TauriApi = typeof import('@tauri-apps/api');
+let tauriApi: TauriApi | null = null;
+
+async function getTauriInvoke() {
+  if (!tauriApi) {
+    tauriApi = await import('@tauri-apps/api');
+  }
+  return tauriApi.core.invoke;
+}
+
 export function PdfToolsPage() {
   const [toolMode, setToolMode] = useState<ToolMode>('compress');
   const [pdfFile, setPdfFile] = useState<PdfToolFile | null>(null);
@@ -29,6 +39,7 @@ export function PdfToolsPage() {
   const [rotation, setRotation] = useState(90);
   const [userPassword, setUserPassword] = useState('');
   const [ownerPassword, setOwnerPassword] = useState('');
+  const [splitRanges, setSplitRanges] = useState('');
   const [pagesToProcess, setPagesToProcess] = useState<number[]>([]);
 
   const handleFileUpload = async (file: File) => {
@@ -49,7 +60,7 @@ export function PdfToolsPage() {
 
     setLoading(true);
     try {
-      const { invoke } = await import('@tauri-apps/api/core');
+      const invoke = await getTauriInvoke();
       const result = await invoke<number[]>('compress_pdf', {
         fileData: Array.from(pdfFile.data),
         quality: compressQuality / 100
@@ -79,7 +90,7 @@ export function PdfToolsPage() {
 
     setLoading(true);
     try {
-      const { invoke } = await import('@tauri-apps/api/core');
+      const invoke = await getTauriInvoke();
       const result = await invoke<number[]>('rotate_pages', {
         request: {
           file_data: Array.from(pdfFile.data),
@@ -159,7 +170,7 @@ export function PdfToolsPage() {
 
     setLoading(true);
     try {
-      const { invoke } = await import('@tauri-apps/api/core');
+      const invoke = await getTauriInvoke();
       const result = await invoke<number[]>('delete_pages', {
         request: {
           file_data: Array.from(pdfFile.data),
@@ -421,7 +432,8 @@ export function PdfToolsPage() {
               <Input.TextArea 
                 placeholder="Rangos de páginas (ej: 1-3, 4-6, 7-10)"
                 rows={3}
-                id="splitRanges"
+                value={splitRanges}
+                onChange={(e) => setSplitRanges(e.target.value)}
               />
             </Col>
             <Col span={24}>
@@ -433,14 +445,14 @@ export function PdfToolsPage() {
                     message.warning('Sube un PDF primero');
                     return;
                   }
-                  const rangesInput = (document.getElementById('splitRanges') as HTMLTextAreaElement)?.value;
+                  const rangesInput = splitRanges;
                   if (!rangesInput) {
                     message.warning('Ingresa los rangos de páginas');
                     return;
                   }
                   setLoading(true);
                   try {
-                    const { invoke } = await import('@tauri-apps/api/core');
+                    const invoke = await getTauriInvoke();
                     const ranges = rangesInput.split(',').map(r => r.trim());
                     const results = await invoke<number[][]>('split_pdf', {
                       request: {

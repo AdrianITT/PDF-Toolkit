@@ -7,7 +7,18 @@ import {
   StarOutlined,
   SwapOutlined,
   ToolOutlined,
+  ScanOutlined,
+  HighlightOutlined,
+  FormOutlined,
+  SafetyCertificateOutlined,
+  FileTextOutlined,
+  FileImageOutlined,
+  EyeInvisibleOutlined,
+  FileProtectOutlined,
+  PlayCircleOutlined,
+  HomeOutlined,
 } from '@ant-design/icons';
+import { DashboardPage } from './modules/dashboard/DashboardPage';
 import { PdfEditorPage } from './modules/pdf-editor/PdfEditorPage';
 import { WatermarkPage } from './modules/watermark/WatermarkPage';
 import { SignaturesPage } from './modules/signatures/SignaturesPage';
@@ -15,13 +26,38 @@ import { HtmlToImagePage } from './modules/html-to-image/HtmlToImagePage';
 import { StampsPage } from './modules/stamps/StampsPage';
 import { ConverterPage } from './modules/converter/ConverterPage';
 import { PdfToolsPage } from './modules/pdf-tools/PdfToolsPage';
+import { OcrPage } from './modules/ocr/OcrPage';
+import { AnnotationsPage } from './modules/annotations/AnnotationsPage';
+import { PdfFormsPage } from './modules/forms/PdfFormsPage';
+import { DigitalSignaturePage } from './modules/digital-signature/DigitalSignaturePage';
+import { PdfComparerPage } from './modules/compare/PdfComparePage';
+import { ImageExtractorPage } from './modules/image-extractor/ImageExtractorPage';
+import { MetadataEditorPage } from './modules/metadata/MetadataEditorPage';
+import { RedactPage } from './modules/redact/RedactPage';
+import { PdfACompliancePage } from './modules/compliance/PdfACompliancePage';
+import { TemplatesPage } from './modules/templates/TemplatesPage';
+import { BatchProcessingPage } from './modules/batch/BatchProcessingPage';
+import { AssetPositionerPage } from './modules/asset-positioner/AssetPositionerPage';
 import { useAppStore } from './stores/appStore';
 import type { AppModule } from './types';
 import { Toolbar } from './components/Toolbar';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import type { ReactNode } from 'react';
 
 const { Sider, Content } = Layout;
 
-const modules: Record<AppModule, { label: string; icon: any; component: any }> = {
+interface ModuleConfig {
+  label: string;
+  icon: ReactNode;
+  component: ReactNode;
+}
+
+const modules: Record<AppModule, ModuleConfig> = {
+  dashboard: {
+    label: 'Inicio',
+    icon: <HomeOutlined />,
+    component: <DashboardPage />,
+  },
   'pdf-editor': {
     label: 'Editor PDF',
     icon: <FilePdfOutlined />,
@@ -56,6 +92,66 @@ const modules: Record<AppModule, { label: string; icon: any; component: any }> =
     label: 'Herramientas PDF',
     icon: <ToolOutlined />,
     component: <PdfToolsPage />,
+  },
+  ocr: {
+    label: 'OCR',
+    icon: <ScanOutlined />,
+    component: <OcrPage />,
+  },
+  annotations: {
+    label: 'Anotaciones',
+    icon: <HighlightOutlined />,
+    component: <AnnotationsPage />,
+  },
+  forms: {
+    label: 'Formularios',
+    icon: <FormOutlined />,
+    component: <PdfFormsPage />,
+  },
+  'digital-signature': {
+    label: 'Firma Digital',
+    icon: <SafetyCertificateOutlined />,
+    component: <DigitalSignaturePage />,
+  },
+  compare: {
+    label: 'Comparar PDFs',
+    icon: <SwapOutlined />,
+    component: <PdfComparerPage />,
+  },
+  'image-extractor': {
+    label: 'Extraer Imágenes',
+    icon: <FileImageOutlined />,
+    component: <ImageExtractorPage />,
+  },
+  metadata: {
+    label: 'Metadatos',
+    icon: <FileTextOutlined />,
+    component: <MetadataEditorPage />,
+  },
+  redact: {
+    label: 'Redactar',
+    icon: <EyeInvisibleOutlined />,
+    component: <RedactPage />,
+  },
+  compliance: {
+    label: 'PDF/A',
+    icon: <FileProtectOutlined />,
+    component: <PdfACompliancePage />,
+  },
+  templates: {
+    label: 'Plantillas',
+    icon: <FileTextOutlined />,
+    component: <TemplatesPage />,
+  },
+  batch: {
+    label: 'Procesamiento Lote',
+    icon: <PlayCircleOutlined />,
+    component: <BatchProcessingPage />,
+  },
+  'asset-positioner': {
+    label: 'Posicionar',
+    icon: <EditOutlined />,
+    component: <AssetPositionerPage />,
   },
 };
 
@@ -118,52 +214,105 @@ function App() {
 
   const CurrentModule = modules[activeModule]?.component;
 
-  const menuItems = Object.entries(modules).map(([key, data]) => ({
-    key,
-    icon: data.icon,
-    label: data.label,
-  }));
+  const menuItems = [
+    {
+      key: 'dashboard',
+      icon: <HomeOutlined />,
+      label: 'Inicio',
+    },
+    {
+      key: 'sub-edition',
+      icon: <EditOutlined />,
+      label: 'Edición & Creación',
+      children: [
+        { key: 'pdf-editor', icon: <FilePdfOutlined />, label: 'Editor PDF' },
+        { key: 'annotations', icon: <HighlightOutlined />, label: 'Anotaciones' },
+        { key: 'forms', icon: <FormOutlined />, label: 'Formularios' },
+        { key: 'templates', icon: <FileTextOutlined />, label: 'Plantillas' },
+      ],
+    },
+    {
+      key: 'sub-security',
+      icon: <SafetyCertificateOutlined />,
+      label: 'Seguridad',
+      children: [
+        { key: 'redact', icon: <EyeInvisibleOutlined />, label: 'Redactar' },
+        { key: 'signatures', icon: <EditOutlined />, label: 'Firmas' },
+        { key: 'digital-signature', icon: <SafetyCertificateOutlined />, label: 'Firma Digital' },
+        { key: 'stamps', icon: <StarOutlined />, label: 'Sellos' },
+        { key: 'watermark', icon: <BgColorsOutlined />, label: 'Marca de Agua' },
+      ],
+    },
+    {
+      key: 'sub-processing',
+      icon: <SwapOutlined />,
+      label: 'Procesamiento',
+      children: [
+        { key: 'image-extractor', icon: <FileImageOutlined />, label: 'Extraer Imágenes' },
+        { key: 'converter', icon: <SwapOutlined />, label: 'Convertidor' },
+        { key: 'ocr', icon: <ScanOutlined />, label: 'OCR' },
+        { key: 'batch', icon: <PlayCircleOutlined />, label: 'Procesamiento Lote' },
+      ],
+    },
+    {
+      key: 'sub-utilities',
+      icon: <ToolOutlined />,
+      label: 'Utilidades',
+      children: [
+        { key: 'metadata', icon: <FileTextOutlined />, label: 'Metadatos' },
+        { key: 'compare', icon: <SwapOutlined />, label: 'Comparar PDFs' },
+        { key: 'compliance', icon: <FileProtectOutlined />, label: 'Cumplimiento PDF/A' },
+        { key: 'html-to-image', icon: <PictureOutlined />, label: 'Firma Correo' },
+        { key: 'pdf-tools', icon: <ToolOutlined />, label: 'Herramientas PDF' },
+      ],
+    },
+  ];
 
   const currentTheme = themeMode === 'dark' ? darkThemeConfig : lightThemeConfig;
 
   return (
-    <ConfigProvider theme={currentTheme as any}>
-      <Layout style={{ minHeight: '100vh' }} data-theme={themeMode}>
-        <Sider
-          width={200}
-          theme={themeMode as "light" | "dark"}
-          style={{
-            borderRight: `1px solid ${themeMode === 'dark' ? '#303030' : '#f0f0f0'}`,
-          }}
-        >
-          <div
+    <ErrorBoundary>
+      <ConfigProvider theme={currentTheme as any}>
+        <Layout style={{ minHeight: '100vh' }} data-theme={themeMode}>
+          <Sider
+            width={200}
+            theme={themeMode as "light" | "dark"}
             style={{
-              padding: 16,
-              fontSize: 16,
-              fontWeight: 'bold',
-              borderBottom: `1px solid ${themeMode === 'dark' ? '#303030' : '#f0f0f0'}`,
-              textAlign: 'center',
-              color: themeMode === 'dark' ? '#fff' : 'inherit',
+              borderRight: `1px solid ${themeMode === 'dark' ? '#303030' : '#f0f0f0'}`,
             }}
           >
-            PDF Toolkit
-          </div>
-          <Menu
-            mode="inline"
-            selectedKeys={[activeModule]}
-            items={menuItems}
-            onClick={({ key }) => setActiveModule(key as AppModule)}
-            style={{ height: '100%', borderRight: 0 }}
-          />
-        </Sider>
-        <Layout>
-          <Toolbar />
-          <Content style={{ padding: 24, background: themeMode === 'dark' ? '#000000' : '#f5f5f5', overflow: 'auto' }}>
-            {CurrentModule}
-          </Content>
+            <div
+              style={{
+                padding: 16,
+                fontSize: 16,
+                fontWeight: 'bold',
+                borderBottom: `1px solid ${themeMode === 'dark' ? '#303030' : '#f0f0f0'}`,
+                textAlign: 'center',
+                color: themeMode === 'dark' ? '#fff' : 'inherit',
+              }}
+            >
+              PDF Toolkit
+            </div>
+            <Menu
+              mode="inline"
+              selectedKeys={[activeModule]}
+              items={menuItems}
+              onClick={({ key }) => {
+                useAppStore.getState().setLastModule(activeModule as AppModule);
+                setActiveModule(key as AppModule);
+              }}
+              style={{ height: '100%', borderRight: 0 }}
+            />
+          </Sider>
+          <Layout>
+            <Toolbar />
+            <Content style={{ padding: 24, background: themeMode === 'dark' ? '#000000' : '#f5f5f5', overflow: 'auto' }}>
+              {CurrentModule}
+            </Content>
+          </Layout>
         </Layout>
-      </Layout>
-    </ConfigProvider>
+      </ConfigProvider>
+    </ErrorBoundary>
   );
 }
 

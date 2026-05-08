@@ -20,6 +20,12 @@ export interface RecentFile {
 
 export type ThemeMode = 'light' | 'dark';
 
+export interface SelectedAsset {
+  type: 'firma' | 'sello';
+  dataUrl: string;
+  name: string;
+}
+
 interface AppState {
   activeModule: AppModule;
   pdfFiles: PdfFile[];
@@ -31,6 +37,8 @@ interface AppState {
   currentPdfPath: string | null;
   recentFiles: RecentFile[];
   theme: ThemeMode;
+  selectedAsset: SelectedAsset | null;
+  lastModule: AppModule | null;
   
   setActiveModule: (module: AppModule) => void;
   addPdfFile: (file: PdfFile) => void;
@@ -51,6 +59,8 @@ interface AppState {
   addRecentFile: (file: RecentFile) => void;
   clearRecentFiles: () => void;
   setTheme: (theme: ThemeMode) => void;
+  setSelectedAsset: (asset: SelectedAsset | null) => void;
+  setLastModule: (module: AppModule | null) => void;
   reset: () => void;
 }
 
@@ -73,7 +83,7 @@ const storedTheme = loadFromStorage<ThemeMode>('pdf-toolkit-theme', 'light');
 const storedRecent = loadFromStorage<RecentFile[]>('pdf-toolkit-recent', []);
 
 const store = create<AppState>((set) => ({
-  activeModule: 'pdf-editor',
+  activeModule: 'dashboard',
   pdfFiles: [],
   orderedPages: [],
   selectedPages: new Set(),
@@ -83,6 +93,8 @@ const store = create<AppState>((set) => ({
   currentPdfPath: null,
   recentFiles: storedRecent,
   theme: storedTheme,
+  selectedAsset: null,
+  lastModule: null,
 
   setActiveModule: (module) => set({ activeModule: module }),
 
@@ -169,6 +181,10 @@ const store = create<AppState>((set) => ({
     saveToStorage('pdf-toolkit-theme', newTheme);
     set({ theme: newTheme });
   },
+
+  setSelectedAsset: (asset) => set({ selectedAsset: asset }),
+
+  setLastModule: (module) => set({ lastModule: module }),
 
   reset: () => set({
     pdfFiles: [],

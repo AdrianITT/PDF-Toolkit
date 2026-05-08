@@ -1,115 +1,120 @@
-# PDF Toolkit — Mesa de Trabajo de Documentos PDF
+# PDF Toolkit 📄
 
-**PDF Toolkit** es una aplicación de escritorio multiplataforma construida con Tauri + React + TypeScript que permite gestionar, editar y convertir documentos PDF con una interfaz moderna e intuitiva.
+> Una suite completa de herramientas PDF de escritorio, construida con tecnologías modernas para ofrecer una experiencia de usuario fluida y profesional.
 
----
-
-## Tabla de Contenidos
-
-- [Funcionalidades](#funcionalidades)
-- [Capturas de Pantalla](#capturas-de-pantalla)
-- [Requisitos Previos](#requisitos-previos)
-- [Instalación](#instalación)
-- [Desarrollo](#desarrollo)
-- [Construcción](#construcción)
-- [Estructura del Proyecto](#estructura-del-proyecto)
-- [Tecnologías](#tecnologías)
+[![Tauri](https://img.shields.io/badge/Tauri-2.0-%2324C8D8?logo=tauri&logoColor=white)](https://tauri.app)
+[![React](https://img.shields.io/badge/React-19-%2361DAFB?logo=react&logoColor=black)](https://react.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-6-%233178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![Rust](https://img.shields.io/badge/Rust-1.70+-%23CE422B?logo=rust&logoColor=white)](https://www.rust-lang.org)
+[![License: MIT](https://img.shields.io/badge/License-MIT-%23000000?logo=opensourceinitiative&logoColor=white)](LICENSE)
 
 ---
 
-## Funcionalidades
+## 📋 Descripción
 
-### 1. Conversor de Documentos
-Convierte documentos entre múltiples formatos populares:
-- **PDF a DOCX** — Convierte PDF a documento Word editable
-- **PDF a XLSX** — Extrae datos de tablas PDF a Excel
-- **PDF a HTML** — Convierte contenido PDF a HTML
-- **PDF a TXT** — Extrae texto plano de documentos PDF
-- Soporta arrastrar y soltar archivos
+**PDF Toolkit** es una aplicación de escritorio multiplataforma diseñada para simplificar el trabajo diario con documentos PDF. Combina la potencia de **Rust** para el backend y **React** para una interfaz moderna e intuitiva, todo empaquetado en una aplicación ligera gracias a **Tauri**.
 
-### 2. Editor de PDF
-Herramientas completas de edición de documentos:
-- **Añadir texto** — Inserta texto personalizado en cualquier página
-- **Añadir imágenes** — Inserta logos, firmas o fotografías
-- **Añadir formas** — Rectángulos, círculos, líneas
-- **Firmas manuscritas** — Dibuja tu firma o súbela como imagen
-- **Sellos** — Crea y aplica sellos personalizados (Aprobado, Revisado, etc.)
-- **Arrastrar y redimensionar** — Mueve y ajusta elementos libremente
-- **Deshacer/Rehacer** — Historial de cambios ilimitado
-- **Zoom** — Acercar/alejar la vista del documento
-- **Exportar** — Guarda el documento editado como PNG, JPG o HTML
+Ideal para profesionales, estudiantes y empresas que necesitan:
+- Convertir documentos entre múltiples formatos
+- Editar PDFs agregando firmas, sellos y anotaciones
+- Crear firmas de correo electrónico profesionales
+- Manipular páginas PDF (fusionar, dividir, rotar, reordenar)
+- Aplicar marcas de agua personalizadas
 
-### 3. Marca de Agua
-Aplica marcas de agua profesionales:
-- **Texto personalizado** — Añade texto con estilo personalizable
-- **Imagen/Logo** — Usa una imagen como marca de agua
-- **Posición** — Selecciona dónde colocar la marca de agua
-- **Opacidad** — Ajusta la transparencia
-- **Tamaño** — Control del tamaño de la marca de agua
-- **Ángulo** — Rota la marca de agua (diagonal, etc.)
-- **Aplicar a** — Todas las páginas o páginas específicas
+---
 
-### 4. Creador de Firmas de Correo
-Diseña firmas de email profesionales con 15 plantillas integradas:
+## ✨ Características Principales
 
+### 🔄 Conversor de Documentos
+Convierte documentos entre múltiples formatos con motor **LibreOffice**:
+- **PDF → DOCX**: Convierte PDF a documento Word editable
+- **PDF → XLSX**: Extrae tablas de PDF a Excel manteniendo estructura
+- **PDF → HTML**: Convierte contenido PDF a páginas web
+- **PDF → TXT**: Extrae texto plano preservando saltos de línea
+- **DOCX → PDF**: Genera PDF desde documentos Word
+- Interfaz drag & drop para carga rápida
+
+### 📝 Editor de PDF Avanzado
+Herramientas completas de edición con **pdf-lib** y **PDF.js**:
+- **Firmas digitales**: Dibuja, sube o selecciona firmas guardadas
+- **Sellos personalizados**: Aprobado, Revisado, Urgente, Borrador, Confirmado
+- **Posicionamiento libre**: Arrastra y redimensiona elementos en el canvas
+- **Múltiples páginas**: Navega, agrega firmas en cualquier página
+- **Exportación**: Guarda el documento editado preservando calidad
+- **Vista previa en tiempo real**: Renderizado fiel con PDF.js
+
+### 🎨 Creador de Firmas de Correo (20 Plantillas)
+Diseña firmas de email profesionales con personalización total:
+
+**Plantillas disponibles:**
 | # | Plantilla | Estilo |
 |---|-----------|--------|
-| 1 | Minimalista Limpio | Diseño limpio con tipografía elegante |
-| 2 | Minimalista Oscuro | Fondo oscuro elegante con texto claro |
-| 3 | Jerárquico Superior | Logo centrado con jerarquía visual |
-| 4 | Jerárquico Lateral | Barra lateral accent con bloques de info |
+| 1 | Minimalista Limpio | Tipografía elegante con espaciado generoso |
+| 2 | Minimalista Oscuro | Fondo oscuro con texto claro y acentos |
+| 3 | Jerárquico Superior | Logo centrado con jerarquía visual clara |
+| 4 | Jerárquico Lateral | Barra lateral con bloques de información |
 | 5 | Visual Centrado | Logo grande con diseño simétrico |
-| 6 | Visual Lateral | Logo con tarjetas internas |
+| 6 | Visual Lateral | Logo con tarjetas de información internas |
 | 7 | Sectorial Bloques | Secciones diferenciadas por color |
-| 8 | Sectorial Grid | Grid de 2x2 para campos |
+| 8 | Sectorial Grid | Grid de 2x2 para campos organizados |
 | 9 | Corporativo Estricto | Diseño formal compatible con Outlook |
 | 10 | Corporativo Moderno | Gradientes y badges coloridos |
-| 11 | Elegante Serif | Tipografía serif con ornamento |
-| 12 | Tech Startup | Colores vibrantes startup |
-| 13 | Tarjeta Sombra | Contenido elevado con sombra |
-| 14 | Legal Formal | Minimalista extremo formal |
-| 15 | Dark Gradient | Fondo oscuro con degradado |
+| 11 | Elegante Serif | Tipografía serif con ornamento decorativo |
+| 12 | Tech Startup | Colores vibrantes para empresas tecnológicas |
+| 13 | Tarjeta Sombra | Contenido elevado con sombras suaves |
+| 14 | Legal Formal | Minimalista extremo para sector legal |
+| 15 | Dark Gradient | Fondo oscuro con degradado moderno |
+| 16-20 | Personalizadas | Espacios para diseños custom |
 
-**Campos de la firma:**
-- Nombre, Cargo, Empresa/Organización
-- Email, Teléfono, Web, Dirección
-- Redes sociales (LinkedIn, Twitter)
-- Campos opcionales: Skype, Instagram, Facebook
-- Logo personalizable
+**Campos configurables:**
+- **Información personal**: Nombre, Cargo, Empresa/Organización
+- **Contacto**: Email, Teléfono, Web, Dirección, Skype
+- **Redes sociales**: LinkedIn, Twitter, Instagram, Facebook
 
-**Personalización:**
-- Selector visual de plantillas (grid de thumbnails)
-- Colores: fondo, texto, links, acento
-- Bordes y esquinas ajustables
-- Vista previa en tiempo real (Desktop/Móvil)
-- Exportar como PNG, JPG o HTML
-- Guardar/Cargar firmas múltiples
+**Personalización avanzada:**
+- **Estilo de iconos**: Emoji, Texto o Ninguno
+- **Campos visibles**: Control granular (8 campos) con selección múltiple
+- **Tamaños**: Foto y logo ajustables con sliders
+- **Colores**: Fondo, texto, links, color de acento
+- **Bordes**: Estilo y esquinas redondeadas ajustables
+- **Vista previa**: Desktop y Móvil en tiempo real
+- **Exportación**: PNG, JPG o HTML listo para usar
+- **Gestión**: Guardar/Cargar múltiples firmas
 
-### 5. Herramientas PDF
-Conjunto de utilidades PDF:
-- **Fusionar PDFs** — Combina múltiples archivos PDF en uno
-- **Dividir PDF** — Extrae páginas específicas o rangos
-- **Rotar páginas** — Rota una o varias páginas
-- **Reordenar páginas** — Arrastra y suelta para reordenar
-- **Eliminar páginas** — Quita páginas no deseadas
-- **Comprimir PDF** — Reduce el tamaño del archivo
+### 🔧 Herramientas PDF
+Conjunto de utilidades esenciales con backend en **Rust**:
+- **Fusionar PDFs**: Combina múltiples archivos en uno solo
+- **Dividir PDF**: Extrae páginas específicas o rangos personalizados
+- **Rotar páginas**: Rota una o varias páginas (90°, 180°, 270°)
+- **Reordenar páginas**: Drag & drop para reorganizar visualmente
+- **Eliminar páginas**: Quita páginas no deseadas del documento
+- **Comprimir PDF**: Reduce el tamaño optimizando imágenes
 
-### 6. Gestión de Sellos
-Crea y administra sellos personalizados:
-- **Sellos predeterminados** — Aprobado, Revisado, Urgente, Borrador, Confirmado
-- **Sellos personalizados** — Crea sellos con texto y color personalizados
-- **Subir sello como imagen** — Usa una imagen existente
-- **Aplicar a documento** — Coloca el sello en el PDF
+### 💧 Marca de Agua
+Aplica marcas de agua profesionales:
+- **Texto personalizado**: Añade texto con estilo configurable
+- **Imagen/Logo**: Usa una imagen como marca de agua
+- **Posición**: 9 posiciones predefinidas + posición libre
+- **Opacidad**: Control deslizable de transparencia
+- **Tamaño**: Ajuste fino del tamaño de la marca
+- **Ángulo**: Rotación libre (diagonal, horizontal, etc.)
+- **Aplicar a**: Todas las páginas o selección específica
+
+### 🔍 Búsqueda en PDF (En desarrollo)
+- Búsqueda de texto en documentos cargados
+- Navegación entre coincidencias
+- Resaltado visual de resultados
+- Contador de coincidencias
 
 ---
 
-## Capturas de Pantalla
+## 🖼️ Capturas de Pantalla
 
-*(Próximamente — Agrega capturas de pantalla del módulo de Editor, Conversor, Firmas, etc.)*
+*(Próximamente — Se agregarán capturas de los módulos: Editor, Conversor, Firmas, Herramientas y Marca de Agua)*
 
 ---
 
-## Requisitos Previos
+## 🚀 Requisitos Previos
 
 ### Para desarrollo web (Vite)
 - **Node.js** 18.x o superior
@@ -117,118 +122,124 @@ Crea y administra sellos personalizados:
 
 ### Para aplicación de escritorio (Tauri)
 - **Node.js** 18.x o superior
-- **Rust** 1.70 o superior
-- **Rustup** instalado
-- **macOS:** Xcode Command Line Tools
-- **Windows:** Visual Studio Build Tools
+- **Rust** 1.70 o superior con **Rustup**
+- **macOS:** Xcode Command Line Tools (`xcode-select --install`)
+- **Windows:** Visual Studio Build Tools 2022+ con C++ desktop development
 - **Linux:** `libwebkit2gtk-4.1-dev`, `libssl-dev`, `build-essential`
 
-### Verificar instalación de Rust
+### Verificar instalación
 ```bash
+node --version
+npm --version
 rustc --version
 cargo --version
 ```
 
 ---
 
-## Instalación
+## 📦 Instalación
 
-### Paso 1: Clonar el repositorio
-
+### 1. Clonar el repositorio
 ```bash
 git clone <URL_DEL_REPOSITORIO>
-cd ConvertidoyMas/pdf-toolkit
+cd PDF-Toolkit
 ```
 
-### Paso 2: Instalar dependencias
-
+### 2. Instalar dependencias de Node.js
 ```bash
 npm install
 ```
 
-### Paso 3: Configurar Tauri (solo si usas la app de escritorio)
-
-Tauri requiere configurar un identificador único para la aplicación. Edita el archivo `src-tauri/tauri.conf.json`:
-
+### 3. Configurar Tauri (solo para app de escritorio)
+Editar `src-tauri/tauri.conf.json`:
 ```json
 {
   "productName": "PDF Toolkit",
   "identifier": "com.tu-dominio.pdf-toolkit",
-  ...
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "macOS": {
+      "frameworks": [],
+      "identifier": "com.tu-dominio.pdf-toolkit"
+    }
+  }
 }
 ```
 
-> **Nota:** El `identifier` debe ser un dominio inverso único. Si no planeas usar Tauri, puedes ignorar este paso.
+> **Nota:** El `identifier` debe ser un dominio inverso único.
 
 ---
 
-## Desarrollo
+## 💻 Desarrollo
 
 ### Ejecutar en modo desarrollo (Web)
-
 ```bash
 npm run dev
 ```
-
-Esto inicia el servidor de desarrollo en `http://localhost:5173`. Los cambios se recargan automáticamente.
+Inicia el servidor de Vite en `http://localhost:5173` con recarga en caliente.
 
 ### Ejecutar en modo desarrollo (Tauri)
-
 ```bash
-npm run tauri
+npm run tauri dev
 ```
-
-Esto abre la aplicación de escritorio Tauri con recarga en caliente.
+Abre la aplicación de escritorio Tauri con recarga en caliente y herramientas de desarrollo.
 
 ---
 
-## Construcción
+## 🏗️ Construcción
 
-### Construir para web (genera archivos estáticos)
-
+### Construir para web (archivos estáticos)
 ```bash
 npm run build
 ```
-
-Output en la carpeta `dist/`. Puedes desplegar estos archivos en cualquier hosting estático (Vercel, Netlify, GitHub Pages, etc.).
+Output en `dist/`. Desplegable en Vercel, Netlify, GitHub Pages, etc.
 
 ### Construir aplicación de escritorio
-
 ```bash
 npm run tauri build
 ```
-
-Esto genera:
+Genera ejecutables en `src-tauri/target/release/bundle/`:
 - **macOS:** `.app` y `.dmg`
 - **Windows:** `.exe` (NSIS installer)
 - **Linux:** `.deb`, `.AppImage`
 
-Los ejecutables se encuentran en `src-tauri/target/release/bundle/`.
-
-### Construir solo el ejecutable (sin installer)
-
+### Construir solo el ejecutable (sin instalador)
 ```bash
 npm run tauri:build:app
 ```
 
+### Para macOS específicamente:
+```bash
+cd /Users/adrian/Desktop/5-5-2026/PDF-Toolkit
+npm run tauri build
+# El ejecutable estará en:
+# src-tauri/target/release/bundle/macos/PDF-Toolkit.app
+```
+
 ---
 
-## Estructura del Proyecto
+## 📁 Estructura del Proyecto
 
 ```
-pdf-toolkit/
+PDF-Toolkit/
 ├── src/
-│   ├── modules/
+│   ├── components/           # Componentes reutilizables
+│   │   ├── FileDropzone.tsx  # Zona de arrastrar y soltar
+│   │   ├── PdfGrid.tsx       # Grid de páginas PDF
+│   │   ├── Toolbar.tsx       # Barra de herramientas
+│   │   └── ErrorBoundary.tsx # Manejo de errores
+│   ├── modules/              # Módulos de la aplicación
 │   │   ├── converter/        # Conversor de documentos
 │   │   │   └── ConverterPage.tsx
-│   │   ├── html-to-image/    # Creador de firmas de correo
+│   │   ├── html-to-image/    # Creador de firmas
 │   │   │   ├── HtmlToImagePage.tsx
-│   │   │   └── signatureTemplates.tsx
+│   │   │   └── signatureTemplates.tsx (20 plantillas)
 │   │   ├── pdf-editor/       # Editor de PDF
 │   │   │   └── PdfEditorPage.tsx
-│   │   ├── pdf-tools/        # Herramientas PDF varias
+│   │   ├── pdf-tools/        # Herramientas PDF
 │   │   │   └── PdfToolsPage.tsx
-│   │   ├── signatures/       # Gestión de firmas manuscritas
+│   │   ├── signatures/       # Gestión de firmas
 │   │   │   └── SignaturesPage.tsx
 │   │   ├── stamps/           # Gestión de sellos
 │   │   │   └── StampsPage.tsx
@@ -237,15 +248,19 @@ pdf-toolkit/
 │   ├── stores/
 │   │   └── appStore.ts       # Estado global (Zustand)
 │   ├── types/
-│   │   └── index.ts          # Tipos compartidos
+│   │   └── index.ts          # Tipos compartidos TypeScript
 │   ├── App.tsx               # Componente principal
 │   └── main.tsx              # Punto de entrada
 ├── src-tauri/                # Código Rust (Tauri)
 │   ├── src/
-│   │   └── lib.rs            # Lógica Rust
+│   │   ├── lib.rs            # Comandos Tauri
+│   │   ├── commands/         # Comandos organizados
+│   │   │   ├── pdf_tools.rs  # Operaciones PDF en Rust
+│   │   │   └── ...
+│   │   └── ...
 │   ├── Cargo.toml           # Dependencias Rust
 │   ├── tauri.conf.json      # Configuración Tauri
-│   └── icons/               # Iconos de la app
+│   └── icons/               # Iconos de la aplicación
 ├── public/                   # Archivos estáticos
 ├── index.html
 ├── package.json
@@ -255,58 +270,113 @@ pdf-toolkit/
 ```
 
 ### Agregar un nuevo módulo
-
 1. Crear carpeta en `src/modules/mi-modulo/`
 2. Crear `MiModuloPage.tsx` con el componente principal
 3. Agregar la ruta en `src/App.tsx`
-4. Agregar el módulo en `src/types/index.ts`
+4. Agregar el tipo en `src/types/index.ts`
 
 ---
 
-## Tecnologías
+## 🛠️ Tecnologías
 
 ### Frontend
-- **React** 19 — Biblioteca de UI
-- **TypeScript** 6 — Tipado estático
-- **Vite** 5 — Bundler y servidor de desarrollo
-- **Ant Design** 6 — Componentes UI
-- **Zustand** 5 — Gestión de estado
-- **React Dropzone** 15 — Arrastrar y soltar archivos
-- **html-to-image** — Exportar como imagen
-- **pdf-lib** — Manipulación de PDFs
-- **pdfjs-dist** — Renderizado de PDFs
-- **mammoth** — Conversión DOCX a PDF
-- **xlsx** — Lectura/escritura de Excel
-- **jspdf** — Generación de PDFs
-- **@dnd-kit** — Drag and drop
+| Tecnología | Versión | Propósito |
+|------------|---------|-----------|
+| **React** | 19 | Biblioteca de UI con hooks y componentes funcionales |
+| **TypeScript** | 6 | Tipado estático para mayor seguridad y autocompletado |
+| **Vite** | 5 | Bundler ultrarrápido con HMR (Hot Module Replacement) |
+| **Ant Design** | 6 | Biblioteca de componentes UI profesional (Space, Card, Button, etc.) |
+| **Zustand** | 5 | Gestión de estado global minimalista y performante |
+| **React Dropzone** | 15 | Zona de arrastrar y soltar archivos |
+| **html-to-image** | Latest | Exportar componentes React como imágenes (PNG/JPG) |
+| **pdf-lib** | Latest | Manipulación avanzada de PDFs (firmas, sellos, edición) |
+| **pdfjs-dist** | 4 (Legacy) | Renderizado de PDFs en canvas (vista previa) |
+| **mammoth** | Latest | Conversión DOCX a HTML manteniendo formato |
+| **xlsx** | Latest | Lectura y escritura de archivos Excel |
+| **jspdf** | Latest | Generación de PDFs desde cero |
+| **DOMPurify** | Latest | Sanitización de HTML para prevenir XSS |
+| **@dnd-kit** | Latest | Drag and drop accesible y personalizable |
 
 ### Backend / Escritorio
-- **Tauri** 2 — Framework de escritorio (Rust + WebView)
-- **Rust** — Lenguaje del backend
+| Tecnología | Versión | Propósito |
+|------------|---------|-----------|
+| **Tauri** | 2 | Framework de escritorio ligero (Rust + WebView) |
+| **Rust** | 1.70+ | Lenguaje seguro y de alto rendimiento para backend |
+| **lopdf** | Latest | Biblioteca Rust para manipulación de PDFs |
+| **LibreOffice** | 7+ | Motor de conversión de documentos (vía Tauri) |
 
-### Plataformas soportadas
-- Windows (7+)
-- macOS (10.14+)
-- Linux (Ubuntu 18.04+, Debian 10+)
-
----
-
-## Licencia
-
-MIT License — Ver archivo `LICENSE` para más detalles.
+### Herramientas de desarrollo
+- **ESLint**: Linting de código JavaScript/TypeScript
+- **Prettier**: Formateo de código (opcional)
+- **TypeScript Compiler**: Verificación de tipos (`tsc --noEmit`)
 
 ---
 
-## Contribuir
+## 🔒 Seguridad
+
+- **Sanitización XSS**: Uso de `DOMPurify` en renderizado de HTML
+- **Error Boundaries**: Manejo graceful de errores en React
+- **Context Isolation**: Tauri aísla el backend Rust del frontend
+- **Validación de entrada**: Verificación de tipos con TypeScript
+
+---
+
+## 🌍 Plataformas Soportadas
+
+| Plataforma | Versión mínima | Arquitectura |
+|------------|----------------|--------------|
+| **macOS** | 10.14+ (Mojave) | x64, ARM64 (Apple Silicon) |
+| **Windows** | 7+ | x64 |
+| **Linux** | Ubuntu 18.04+, Debian 10+ | x64 |
+
+---
+
+## 📝 Licencia
+
+Distribuido bajo la **MIT License**. Ver archivo `LICENSE` para más detalles.
+
+---
+
+## 🤝 Contribuir
 
 1. Haz un fork del repositorio
-2. Crea una rama (`git checkout -b feature/nueva-funcion`)
+2. Crea una rama para tu feature (`git checkout -b feature/nueva-funcion`)
 3. Haz commit de tus cambios (`git commit -m 'Añadir nueva función'`)
 4. Push a la rama (`git push origin feature/nueva-funcion`)
 5. Abre un Pull Request
 
+### Estándares de código
+- Seguir las reglas de ESLint y TypeScript
+- Usar componentes funcionales de React con hooks
+- Mantener español para UI y comentarios
+- Documentar funciones complejas
+
 ---
 
-## Soporte
+## 🐛 Soporte
 
-Si encuentras algún problema o tienes sugerencias, abre un issue en el repositorio.
+Si encuentras algún problema o tienes sugerencias:
+- Abre un issue en el repositorio
+- Describe el paso a paso para reproducir el error
+- Adjunta capturas de pantalla si es posible
+
+---
+
+## 🎯 Roadmap
+
+- [x] Conversor de documentos
+- [x] Editor de PDF con firmas y sellos
+- [x] Creador de firmas de correo (20 plantillas)
+- [x] Herramientas PDF (fusionar, dividir, rotar)
+- [x] Marca de agua personalizable
+- [x] Gestión de firmas y sellos
+- [ ] Búsqueda en PDF (en progreso)
+- [ ] Anotaciones PDF (notas, resaltado)
+- [ ] Comparación de PDFs
+- [ ] Formularios PDF interactivos
+- [ ] OCR (Reconocimiento de caracteres)
+- [ ] Firma digital con certificados
+
+---
+
+**Desarrollado con ❤️ usando Rust y React**
