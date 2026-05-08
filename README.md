@@ -20,28 +20,48 @@ Ideal para profesionales, estudiantes y empresas que necesitan:
 - Crear firmas de correo electrónico profesionales
 - Manipular páginas PDF (fusionar, dividir, rotar, reordenar)
 - Aplicar marcas de agua personalizadas
+- Proteger documentos con encriptación y firmas digitales
 
 ---
 
 ## ✨ Características Principales
 
-### 🔄 Conversor de Documentos
-Convierte documentos entre múltiples formatos con motor **LibreOffice**:
-- **PDF → DOCX**: Convierte PDF a documento Word editable
-- **PDF → XLSX**: Extrae tablas de PDF a Excel manteniendo estructura
-- **PDF → HTML**: Convierte contenido PDF a páginas web
-- **PDF → TXT**: Extrae texto plano preservando saltos de línea
-- **DOCX → PDF**: Genera PDF desde documentos Word
-- Interfaz drag & drop para carga rápida
+### 📊 Dashboard
+Centro de control con acceso rápido a todas las herramientas:
+- Acciones rápidas: Anotaciones, Redactar, Formularios, Editor PDF, Extraer Imágenes, Convertidor
+- Firmas y Sellos: Acceso directo a gestión de firmas digitales y sellos
 
-### 📝 Editor de PDF Avanzado
+### 📝 Editor de PDF
 Herramientas completas de edición con **pdf-lib** y **PDF.js**:
-- **Firmas digitales**: Dibuja, sube o selecciona firmas guardadas
-- **Sellos personalizados**: Aprobado, Revisado, Urgente, Borrador, Confirmado
-- **Posicionamiento libre**: Arrastra y redimensiona elementos en el canvas
-- **Múltiples páginas**: Navega, agrega firmas en cualquier página
+- **Fusión de PDFs**: Combina múltiples archivos en uno solo
+- **Reordenamiento visual**: Arrastra y suelta páginas para reorganizar
+- **Eliminar páginas**: Quita páginas no deseadas
+- **Rotar páginas**: Rota páginas individuales o todas (90°, 180°, 270°)
+- **Vista previa**: Renderizado fiel con PDF.js en tiempo real
 - **Exportación**: Guarda el documento editado preservando calidad
-- **Vista previa en tiempo real**: Renderizado fiel con PDF.js
+
+### ✍️ Firmas Digitales
+Gestión completa de firmas manuscritas y digitales:
+- **Firmas manuscritas**: Dibuja tu firma con el mouse o panel táctil
+- **Subir firma**: Importa imágenes PNG/JPG de firmas predefinidas
+- **Biblioteca de firmas**: Guarda múltiples firmas para uso rápido
+- **Posicionar en PDF**: Arrastra, redimensiona y coloca la firma en cualquier página
+
+### 🔏 Sellos Personalizados
+Biblioteca de sellos prediseñados y personalizados:
+- **Sellos predefinidos**: Aprobado, Revisado, Urgente, Borrador, Confirmado, Personalizado
+- **Subir sello**: Importa imágenes de sellos propios
+- **Posicionar en PDF**: Arrastra, redimensiona y coloca el sello en cualquier página
+- **Gestión de sellos**: Guarda y organiza tu biblioteca de sellos
+
+### 🎯 Posicionador de Firmas/Sellos (Asset Positioner)
+Workflow dedicado para posicionar firmas y sellos:
+- **Cargar PDF**: Arrastra o selecciona el documento a firmar
+- **Navegación de páginas**: Ve todas las páginas del documento
+- **Arrastrar y soltar**: Posiciona la firma/sello con drag & drop
+- **Redimensionar**: Ajusta el tamaño con controles visuales
+- **Colores de tinta**: Cambia el color de la firma (negro, azul, rojo)
+- **Descargar PDF**: Exporta el documento con la firma aplicada
 
 ### 🎨 Creador de Firmas de Correo (20 Plantillas)
 Diseña firmas de email profesionales con personalización total:
@@ -81,15 +101,6 @@ Diseña firmas de email profesionales con personalización total:
 - **Exportación**: PNG, JPG o HTML listo para usar
 - **Gestión**: Guardar/Cargar múltiples firmas
 
-### 🔧 Herramientas PDF
-Conjunto de utilidades esenciales con backend en **Rust**:
-- **Fusionar PDFs**: Combina múltiples archivos en uno solo
-- **Dividir PDF**: Extrae páginas específicas o rangos personalizados
-- **Rotar páginas**: Rota una o varias páginas (90°, 180°, 270°)
-- **Reordenar páginas**: Drag & drop para reorganizar visualmente
-- **Eliminar páginas**: Quita páginas no deseadas del documento
-- **Comprimir PDF**: Reduce el tamaño optimizando imágenes
-
 ### 💧 Marca de Agua
 Aplica marcas de agua profesionales:
 - **Texto personalizado**: Añade texto con estilo configurable
@@ -100,17 +111,97 @@ Aplica marcas de agua profesionales:
 - **Ángulo**: Rotación libre (diagonal, horizontal, etc.)
 - **Aplicar a**: Todas las páginas o selección específica
 
-### 🔍 Búsqueda en PDF (En desarrollo)
-- Búsqueda de texto en documentos cargados
-- Navegación entre coincidencias
-- Resaltado visual de resultados
-- Contador de coincidencias
+### 🔍 Anotaciones PDF
+Añade comentarios y marcas a tus documentos:
+- **Resaltado**: Resalta texto con colores (amarillo, verde, azul, rosa)
+- **Subrayado**: Subraya palabras o frases importantes
+- **Notas**: Agrega notas adhesivas con comentarios
+- **Navegación**: Salta entre anotaciones fácilmente
+- **Exportar**: Guarda el PDF con anotaciones integradas
+
+### 🖤 Redactar
+Oculta permanentemente información sensible:
+- **Selección de área**: Dibuja rectángulos sobre el contenido a ocultar
+- **Razón de redacción**: Añade descripción del área removida
+- **Aplicación permanente**: El texto subyacente se elimina completamente
+- **Vista previa**: Previsualiza antes de aplicar
+
+### 📋 Formularios PDF
+Gestiona formularios interactivos:
+- **Rellenar formularios**: Completa campos de formulario existentes
+- **Crear campos**: Añade nuevos campos de entrada
+- **Tipos de campo**: Texto, checkboxes, radio buttons, listas desplegables
+- **Validación**: Verifica datos antes de guardar
+
+### 🔐 Firma Digital
+Protege documentos con certificados digitales:
+- **Cargar certificado**: Importa archivos P12/PFX con clave
+- **Información del certificado**: Muestra detalles del certificado
+- **Firmar PDF**: Aplica firma digital con marca de tiempo
+- **Niveles de firma**: Básico, Avanzado, Calificado
+
+### 🔎 Comparar PDFs
+Compara dos documentos visualmente:
+- **Vista lateral**: Compara páginas una al lado de otra
+- **Vista superpuesta**: Overlay de diferencias
+- **Informe de diferencias**: Resumen por página
+- **Similitud**: Porcentaje de coincidencia entre documentos
+
+### 📰 OCR (Reconocimiento de Texto)
+Extrae texto de imágenes escaneadas:
+- **Procesamiento**: Convierte imágenes en texto editable
+- **Confianza**: Muestra nivel de precisión por página
+- **Exportar**: Guarda texto extraído en archivo
+
+### 🖼️ Extraer Imágenes
+Recupera todas las imágenes de un PDF:
+- **Exportar imágenes**: Guarda cada imagen como archivo separado
+- **Calidad original**: Mantiene la resolución de las imágenes
+- **Explorador de imágenes**: Vista previa de todas las imágenes
+
+### 🔄 Conversor de Documentos
+Convierte documentos entre múltiples formatos:
+- **PDF → DOCX**: Convierte PDF a documento Word editable
+- **PDF → XLSX**: Extrae tablas de PDF a Excel manteniendo estructura
+- **PDF → HTML**: Convierte contenido PDF a páginas web
+- **PDF → TXT**: Extrae texto plano preservando saltos de línea
+- **DOCX → PDF**: Genera PDF desde documentos Word
+- **Interfaz drag & drop**: Carga rápida de archivos
+- **Procesamiento por lotes**: Convierte múltiples archivos
+
+### 📦 Procesamiento por Lotes
+Opera sobre múltiples PDFs a la vez:
+- **Comprimir**: Reduce el tamaño de múltiples archivos
+- **Aplicar marca de agua**: Marca de agua en varios PDFs
+- **Encryption**: Encripta múltiples documentos
+- **Renombrar**: Nombra archivos según patrones
+
+### 📑 Metadatos
+Edita información del documento:
+- **Título, Autor, Asunto**: Metadatos básicos
+- **Palabras clave**: Para búsqueda
+- **Productor/Creador**: Información de software
+- **Fechas**: Fecha de creación y modificación
+
+### 📐 Cumplimiento PDF/A
+Prepara documentos para archivado:
+- **Validar**: Verifica cumplimiento de estándar PDF/A
+- **Convertir**: Transforma a formato PDF/A-1b o PDF/A-2b
+- **Informe**: Muestra estado de cumplimiento
+
+### 🖥️ Herramientas PDF
+Conjunto de utilidades esenciales:
+- **Fusionar PDFs**: Combina múltiples archivos
+- **Dividir PDF**: Extrae páginas específicas
+- **Rotar páginas**: Rotación visual
+- **Comprimir**: Optimiza tamaño de archivo
+- **Extraer páginas**: Guarda páginas seleccionadas
 
 ---
 
 ## 🖼️ Capturas de Pantalla
 
-*(Próximamente — Se agregarán capturas de los módulos: Editor, Conversor, Firmas, Herramientas y Marca de Agua)*
+*(Próximamente)*
 
 ---
 
@@ -204,17 +295,12 @@ Genera ejecutables en `src-tauri/target/release/bundle/`:
 - **Windows:** `.exe` (NSIS installer)
 - **Linux:** `.deb`, `.AppImage`
 
-### Construir solo el ejecutable (sin instalador)
-```bash
-npm run tauri:build:app
-```
-
 ### Para macOS específicamente:
 ```bash
 cd /Users/adrian/Desktop/5-5-2026/PDF-Toolkit
-npm run tauri build
+npx tauri build --bundles dmg
 # El ejecutable estará en:
-# src-tauri/target/release/bundle/macos/PDF-Toolkit.app
+# src-tauri/target/release/bundle/dmg/PDF Toolkit_0.1.0_aarch64.dmg
 ```
 
 ---
@@ -230,38 +316,68 @@ PDF-Toolkit/
 │   │   ├── Toolbar.tsx       # Barra de herramientas
 │   │   └── ErrorBoundary.tsx # Manejo de errores
 │   ├── modules/              # Módulos de la aplicación
+│   │   ├── dashboard/        # Dashboard principal
+│   │   │   └── DashboardPage.tsx
 │   │   ├── converter/        # Conversor de documentos
 │   │   │   └── ConverterPage.tsx
-│   │   ├── html-to-image/    # Creador de firmas
+│   │   ├── html-to-image/    # Creador de firmas de correo
 │   │   │   ├── HtmlToImagePage.tsx
 │   │   │   └── signatureTemplates.tsx (20 plantillas)
-│   │   ├── pdf-editor/       # Editor de PDF
-│   │   │   └── PdfEditorPage.tsx
+│   │   ├── pdf-editor/       # Editor de PDF (fusión/reordenamiento)
+│   │   │   ├── PdfEditorPage.tsx
+│   │   │   ├── SignatureModal.tsx
+│   │   │   └── SearchBar.tsx
+│   │   ├── asset-positioner/  # Posicionador de firmas/sellos
+│   │   │   └── AssetPositionerPage.tsx
 │   │   ├── pdf-tools/        # Herramientas PDF
 │   │   │   └── PdfToolsPage.tsx
 │   │   ├── signatures/       # Gestión de firmas
 │   │   │   └── SignaturesPage.tsx
-│   │   ├── stamps/           # Gestión de sellos
+│   │   ├── stamps/          # Gestión de sellos
 │   │   │   └── StampsPage.tsx
-│   │   └── watermark/        # Marca de agua
-│   │       └── WatermarkPage.tsx
+│   │   ├── watermark/       # Marca de agua
+│   │   │   └── WatermarkPage.tsx
+│   │   ├── annotations/     # Anotaciones PDF
+│   │   │   └── AnnotationsPage.tsx
+│   │   ├── redact/          # Redactar información sensible
+│   │   │   └── RedactPage.tsx
+│   │   ├── forms/           # Formularios PDF
+│   │   │   └── PdfFormsPage.tsx
+│   │   ├── digital-signature/ # Firma digital con certificados
+│   │   │   └── DigitalSignaturePage.tsx
+│   │   ├── compare/          # Comparar PDFs
+│   │   │   └── PdfComparePage.tsx
+│   │   ├── ocr/             # OCR - Reconocimiento de texto
+│   │   │   └── OcrPage.tsx
+│   │   ├── image-extractor/ # Extraer imágenes
+│   │   │   └── ImageExtractorPage.tsx
+│   │   ├── batch/           # Procesamiento por lotes
+│   │   │   └── BatchProcessingPage.tsx
+│   │   ├── metadata/        # Editor de metadatos
+│   │   │   └── MetadataEditorPage.tsx
+│   │   ├── compliance/      # Cumplimiento PDF/A
+│   │   │   └── PdfACompliancePage.tsx
+│   │   └── templates/        # Generador de documentos
+│   │       └── TemplatesPage.tsx
 │   ├── stores/
 │   │   └── appStore.ts       # Estado global (Zustand)
 │   ├── types/
 │   │   └── index.ts          # Tipos compartidos TypeScript
-│   ├── App.tsx               # Componente principal
-│   └── main.tsx              # Punto de entrada
-├── src-tauri/                # Código Rust (Tauri)
+│   ├── utils/
+│   │   └── pdfjs.ts          # Utilidades PDF.js
+│   ├── App.tsx              # Componente principal
+│   └── main.tsx             # Punto de entrada
+├── src-tauri/               # Código Rust (Tauri)
 │   ├── src/
-│   │   ├── lib.rs            # Comandos Tauri
-│   │   ├── commands/         # Comandos organizados
-│   │   │   ├── pdf_tools.rs  # Operaciones PDF en Rust
-│   │   │   └── ...
-│   │   └── ...
+│   │   ├── lib.rs           # Comandos Tauri
+│   │   ├── main.rs          # Entry point
+│   │   └── commands/        # Comandos organizados
+│   │       ├── pdf_tools.rs  # Operaciones PDF en Rust
+│   │       └── converter.rs  # Conversor
 │   ├── Cargo.toml           # Dependencias Rust
 │   ├── tauri.conf.json      # Configuración Tauri
 │   └── icons/               # Iconos de la aplicación
-├── public/                   # Archivos estáticos
+├── public/                  # Archivos estáticos
 ├── index.html
 ├── package.json
 ├── tsconfig.json
@@ -285,7 +401,7 @@ PDF-Toolkit/
 | **React** | 19 | Biblioteca de UI con hooks y componentes funcionales |
 | **TypeScript** | 6 | Tipado estático para mayor seguridad y autocompletado |
 | **Vite** | 5 | Bundler ultrarrápido con HMR (Hot Module Replacement) |
-| **Ant Design** | 6 | Biblioteca de componentes UI profesional (Space, Card, Button, etc.) |
+| **Ant Design** | 6 | Biblioteca de componentes UI profesional |
 | **Zustand** | 5 | Gestión de estado global minimalista y performante |
 | **React Dropzone** | 15 | Zona de arrastrar y soltar archivos |
 | **html-to-image** | Latest | Exportar componentes React como imágenes (PNG/JPG) |
@@ -364,18 +480,28 @@ Si encuentras algún problema o tienes sugerencias:
 
 ## 🎯 Roadmap
 
+### Completados ✅
+- [x] Dashboard con acceso rápido
 - [x] Conversor de documentos
 - [x] Editor de PDF con firmas y sellos
+- [x] Posicionador de firmas/sellos (asset-positioner)
 - [x] Creador de firmas de correo (20 plantillas)
 - [x] Herramientas PDF (fusionar, dividir, rotar)
 - [x] Marca de agua personalizable
 - [x] Gestión de firmas y sellos
-- [ ] Búsqueda en PDF (en progreso)
-- [ ] Anotaciones PDF (notas, resaltado)
-- [ ] Comparación de PDFs
-- [ ] Formularios PDF interactivos
-- [ ] OCR (Reconocimiento de caracteres)
-- [ ] Firma digital con certificados
+- [x] Anotaciones PDF (resaltado, subrayado, notas)
+- [x] Redactar información sensible
+- [x] Formularios PDF interactivos
+- [x] Firma digital con certificados
+- [x] Comparación de PDFs
+- [x] OCR (Reconocimiento de caracteres)
+- [x] Extraer imágenes de PDF
+- [x] Procesamiento por lotes
+- [x] Editor de metadatos
+- [x] Cumplimiento PDF/A
+
+### Pendientes 🔄
+- [ ] Mejoras adicionales de UI/UX
 
 ---
 
