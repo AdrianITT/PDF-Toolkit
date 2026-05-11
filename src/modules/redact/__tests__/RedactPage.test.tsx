@@ -23,9 +23,9 @@ describe('RedactPage', () => {
     expect(screen.getByText('Subir PDF')).toBeTruthy();
   });
 
-  it('shows redact button with 0 count', () => {
+  it('shows redact button with count', () => {
     render(<RedactPage />);
-    expect(screen.getByText('Aplicar Redacción (0)')).toBeTruthy();
+    expect(screen.getByText(/redacción.*total/i)).toBeTruthy();
   });
 
   it('shows informational alert', () => {

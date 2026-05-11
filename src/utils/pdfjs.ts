@@ -118,22 +118,27 @@ export async function renderPage(
   if (!ctx) throw new Error('No se pudo obtener contexto 2D');
   
   // Guardar la tarea de renderizado en el canvas para poder cancelarla luego
-  if ((canvas as any)._renderTask) {
+  interface CanvasWithRenderTask extends HTMLCanvasElement {
+    _renderTask?: { cancel: () => void };
+  }
+  const canvasWithTask = canvas as CanvasWithRenderTask;
+  if (canvasWithTask._renderTask) {
     try {
-      (canvas as any)._renderTask.cancel();
-    } catch (e) {
+      canvasWithTask._renderTask.cancel();
+    } catch {
       // Ignorar errores al cancelar
     }
   }
 
   const renderTask = page.render({ canvasContext: ctx, viewport: renderViewport });
-  (canvas as any)._renderTask = renderTask;
+  canvasWithTask._renderTask = renderTask;
 
   try {
     await renderTask.promise;
-    (canvas as any)._renderTask = null;
-  } catch (err: any) {
-    if (err.name === 'RenderingCancelledException' || err.message === 'cancelled') {
+    canvasWithTask._renderTask = undefined;
+  } catch (err: unknown) {
+    const error = err as { name?: string; message?: string };
+    if (error.name === 'RenderingCancelledException' || error.message === 'cancelled') {
       // Ignorar error de cancelación
       return;
     }
@@ -148,25 +153,21 @@ export function isPdfValid(data: Uint8Array): boolean {
 }
 
 export function getPageDimensions(page: PDFPage): PageDimensions {
-  let width = 0;
-  let height = 0;
+  const dimensions: PageDimensions = { width: 595, height: 841 };
   
   if (typeof page.getWidth === 'function') {
-    width = page.getWidth();
-    height = page.getHeight!();
+    dimensions.width = page.getWidth();
+    dimensions.height = page.getHeight!();
   } else if (page.width && page.height) {
-    width = page.width;
-    height = page.height;
+    dimensions.width = page.width;
+    dimensions.height = page.height;
   } else {
     const info = page._pageInfo;
     if (info?.view && info.view.length >= 4) {
-      width = info.view[2];
-      height = info.view[3];
-    } else {
-      width = 595;
-      height = 841;
+      dimensions.width = info.view[2];
+      dimensions.height = info.view[3];
     }
   }
   
-  return { width, height };
+  return dimensions;
 }

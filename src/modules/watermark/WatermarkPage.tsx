@@ -93,8 +93,7 @@ export function WatermarkPage() {
       
       const thumbnailDataUrl = await generatePdfThumbnail(pdfData);
       setPdfThumbnail(thumbnailDataUrl);
-    } catch (err) {
-      console.error('[Watermark] Upload error:', err);
+    } catch {
       message.error('Error al cargar el PDF');
       return false;
     } finally {

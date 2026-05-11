@@ -77,7 +77,7 @@ export function DigitalSignaturePage() {
           });
           setCertInfo(info);
           message.success('Certificado procesado correctamente');
-        } catch (err) {
+} catch {
           message.warning('Certificado cargado. Ingresa la contraseña y presiona "Verificar"');
         }
       } else {

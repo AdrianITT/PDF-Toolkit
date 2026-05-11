@@ -22,13 +22,13 @@ export function SearchBar({
 }: SearchBarProps) {
   const [searchQuery, setSearchQuery] = useState('');
 
-  const handleSearch = (value: string) => {
-    setSearchQuery(value);
-    if (!value) {
+const handleSearch = (value: string) => {
+    if (!value.trim()) {
       onClear();
-    } else {
-      onSearch(value);
+      return;
     }
+    setSearchQuery(value);
+    onSearch(value);
   };
 
   return (

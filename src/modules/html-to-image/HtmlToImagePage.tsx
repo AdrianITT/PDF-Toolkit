@@ -161,7 +161,7 @@ export function HtmlToImagePage() {
     const img = new window.Image();
     img.crossOrigin = 'anonymous';
     img.src = sig.logoConfig.url;
-    
+
     img.onload = () => {
       canvas.width = img.width;
       canvas.height = img.height;
@@ -190,7 +190,10 @@ export function HtmlToImagePage() {
       }
 
       const newUrl = canvas.toDataURL('image/png');
-      updateLogoConfig('url', newUrl);
+      setSig(prev => ({
+        ...prev,
+        logoConfig: { ...prev.logoConfig, url: newUrl }
+      }));
       message.success(`Variante ${variant} aplicada`);
     };
   }, [sig.logoConfig]);
@@ -217,7 +220,9 @@ export function HtmlToImagePage() {
     if (saved) {
       try {
         setSavedSignatures(JSON.parse(saved));
-      } catch {}
+      } catch (parseErr) {
+        console.error('Error parsing saved signatures:', parseErr);
+      }
     }
   }, []);
 

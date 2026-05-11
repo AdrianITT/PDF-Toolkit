@@ -70,7 +70,9 @@ export function PdfComparerPage() {
           if (!page1 && !page2) continue;
 
           // Simplified comparison: compare text content
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const text1 = page1 ? await (await page1.getTextContent()).items.map((item: any) => item.str).join(' ') : '';
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const text2 = page2 ? await (await page2.getTextContent()).items.map((item: any) => item.str).join(' ') : '';
 
           const similarity = calculateSimilarity(text1, text2);

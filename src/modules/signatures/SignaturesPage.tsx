@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Card, Button, Row, Col, Input, Upload, List, message, Space, Empty, Typography, Alert } from 'antd';
 import { DeleteOutlined, SaveOutlined, ClearOutlined, UploadOutlined } from '@ant-design/icons';
 import { useAppStore } from '../../stores/appStore';
@@ -169,14 +169,20 @@ export function SignatureUpload({ onUpload }: { onUpload: (dataUrl: string, name
 export function SignaturesPage() {
   const [signatures, setSignatures] = useState<Signature[]>([]);
 
-  useEffect(() => {
+  const loadSavedSignatures = useCallback(() => {
     const saved = localStorage.getItem('savedSignatures');
     if (saved) {
       try {
         setSignatures(JSON.parse(saved));
-      } catch {}
+      } catch (parseErr) {
+        console.error('Error parsing saved signatures:', parseErr);
+      }
     }
   }, []);
+
+  useEffect(() => {
+    loadSavedSignatures();
+  }, [loadSavedSignatures]);
 
   const saveSignature = (dataUrl: string, name: string) => {
     const newSig: Signature = {

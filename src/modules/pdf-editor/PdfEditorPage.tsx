@@ -84,8 +84,11 @@ function PdfCanvasViewer() {
   // Ejecutar apply cuando isProcessing sea true
   useEffect(() => {
     if (isProcessing && overlays.length > 0) {
-      handleApplyToPdf();
-      useAppStore.setState({ isProcessing: false });
+      const applyAndReset = async () => {
+        await handleApplyToPdf();
+        useAppStore.setState({ isProcessing: false });
+      };
+      applyAndReset();
     }
   }, [isProcessing, overlays.length]);
 
@@ -107,7 +110,7 @@ function PdfCanvasViewer() {
          message.error('Error al renderizar la página');
        });
      }
-   }, [canvasRef.current, currentPage, pdfDoc]);
+   }, [currentPage, pdfDoc]);
 
   const handleSelectSignature = (dataUrl: string) => {
     useAppStore.getState().addOverlay({

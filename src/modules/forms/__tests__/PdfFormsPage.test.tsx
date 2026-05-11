@@ -28,6 +28,6 @@ describe('PdfFormsPage', () => {
 
   it('shows placeholder when no PDF', () => {
     render(<PdfFormsPage />);
-    expect(screen.getByText('Sube un PDF con formularios para comenzar')).toBeTruthy();
+    expect(screen.getByText('Sube un PDF para comenzar')).toBeTruthy();
   });
 });

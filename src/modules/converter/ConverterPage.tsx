@@ -88,6 +88,7 @@ const cleanTextForPdf = (text: string): string => {
     .trim();
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const safeDrawText = (pdfPage: any, text: string, options: any, fallbackFont?: any): void => {
     const safeText = cleanTextForPdf(text);
     if (!safeText) return;

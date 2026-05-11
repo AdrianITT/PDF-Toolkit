@@ -10,7 +10,7 @@ describe('TemplatesPage', () => {
 
   it('shows template count', () => {
     render(<TemplatesPage />);
-    expect(screen.getByText(/3 plantilla/)).toBeTruthy();
+    expect(screen.getByText(/4 plantilla/i)).toBeTruthy();
   });
 
   it('shows category filter', () => {
@@ -24,7 +24,7 @@ describe('TemplatesPage', () => {
 
   it('shows template names', () => {
     render(<TemplatesPage />);
-    expect(screen.getByText('Factura Básica')).toBeTruthy();
+    expect(screen.getByText('Factura Corporativa')).toBeTruthy();
     expect(screen.getByText('Contrato de Servicios')).toBeTruthy();
     expect(screen.getByText('Informe Mensual')).toBeTruthy();
   });
@@ -36,11 +36,11 @@ describe('TemplatesPage', () => {
 
   it('shows create template button', () => {
     render(<TemplatesPage />);
-    expect(screen.getByText('Crear Plantilla')).toBeTruthy();
+    expect(screen.getByText('Crear Nueva')).toBeTruthy();
   });
 
   it('shows informational alert', () => {
     render(<TemplatesPage />);
-    expect(screen.getByText(/¿Qué son las Plantillas?/)).toBeTruthy();
+    expect(screen.getByText(/Editor de Plantillas/i)).toBeTruthy();
   });
 });

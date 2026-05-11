@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, Row, Col, Button, Upload, Input, List, Modal, message, Space, Empty, Typography, Alert } from 'antd';
 import { PlusOutlined, UploadOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useAppStore } from '../../stores/appStore';
@@ -115,16 +115,21 @@ export function StampsPage() {
   const [selectedCategory, setSelectedCategory] = useState('custom');
   const [previewStamp, setPreviewStamp] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadSavedStamps = useCallback(() => {
     const saved = localStorage.getItem('savedStamps');
     if (saved) {
       try {
         setStamps(JSON.parse(saved));
-      } catch {
+      } catch (parseErr) {
+        console.error('Error parsing saved stamps:', parseErr);
         setStamps([]);
       }
     }
   }, []);
+
+  useEffect(() => {
+    loadSavedStamps();
+  }, [loadSavedStamps]);
 
   const saveStamps = (newStamps: Stamp[]) => {
     setStamps(newStamps);

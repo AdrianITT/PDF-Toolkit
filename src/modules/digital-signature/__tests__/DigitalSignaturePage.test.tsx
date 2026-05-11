@@ -19,7 +19,7 @@ describe('DigitalSignaturePage', () => {
   it('shows signature levels', () => {
     render(<DigitalSignaturePage />);
     expect(screen.getByText('Básico (Metadatos)')).toBeTruthy();
-    expect(screen.getByText('Avanzado (PKI)')).toBeTruthy();
+    expect(screen.getByText('Avanzado (PKI + OpenSSL)')).toBeTruthy();
     expect(screen.getByText('Cualificado (eIDAS)')).toBeTruthy();
   });
 
@@ -35,6 +35,6 @@ describe('DigitalSignaturePage', () => {
 
   it('shows informational alert', () => {
     render(<DigitalSignaturePage />);
-    expect(screen.getByText(/¿Qué es la Firma Digital?/)).toBeTruthy();
+    expect(screen.getByText(/Firma Digital con OpenSSL/i)).toBeTruthy();
   });
 });

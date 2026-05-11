@@ -54,18 +54,18 @@ export function PdfFormsPage() {
 
         if (type.includes('TextField')) {
           mappedType = 'text';
-          value = (f as any).getText() || '';
+          value = (f as unknown as { getText: () => string }).getText?.() || '';
         } else if (type.includes('CheckBox')) {
           mappedType = 'checkbox';
-          value = (f as any).isChecked() ? 'true' : 'false';
+          value = (f as unknown as { isChecked: () => boolean }).isChecked?.() ? 'true' : 'false';
         } else if (type.includes('Dropdown')) {
           mappedType = 'dropdown';
-          options = (f as any).getOptions();
-          value = (f as any).getSelected()[0] || '';
+          options = (f as unknown as { getOptions: () => string[] }).getOptions?.() || [];
+          value = (f as unknown as { getSelected: () => string[] }).getSelected?.()[0] || '';
         } else if (type.includes('RadioGroup')) {
           mappedType = 'radio';
-          options = (f as any).getOptions();
-          value = (f as any).getSelected() || '';
+          options = (f as unknown as { getOptions: () => string[] }).getOptions?.() || [];
+          value = (f as unknown as { getSelected: () => string }).getSelected?.() || '';
         }
 
         return {

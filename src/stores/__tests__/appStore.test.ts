@@ -8,7 +8,7 @@ beforeEach(() => {
 describe('appStore', () => {
   it('starts with default state', () => {
     const state = useAppStore.getState();
-    expect(state.activeModule).toBe('pdf-editor');
+    expect(state.activeModule).toBe('dashboard');
     expect(state.pdfFiles).toEqual([]);
     expect(state.orderedPages).toEqual([]);
     expect(state.isProcessing).toBe(false);

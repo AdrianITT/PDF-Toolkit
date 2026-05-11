@@ -31,7 +31,7 @@ export function PdfACompliancePage() {
       setProgress(0);
       
       message.success('PDF cargado correctamente');
-    } catch (err) {
+    } catch {
       message.error('Error al cargar el PDF');
     }
     return false;
@@ -119,7 +119,7 @@ export function PdfACompliancePage() {
       await new Promise(resolve => setTimeout(resolve, 1500));
       
       message.success('PDF convertido a PDF/A (simulación)');
-    } catch (err) {
+    } catch {
       message.error('Error al convertir a PDF/A');
     }
   };
