@@ -8,6 +8,8 @@ import {
   SwapOutlined,
   EditOutlined,
   CheckSquareOutlined,
+  QrcodeOutlined,
+  ScissorOutlined,
 } from '@ant-design/icons';
 import { useAppStore } from '../../stores/appStore';
 
@@ -52,6 +54,18 @@ export function DashboardPage() {
       description: 'Convierte archivos Office o imágenes a formato PDF.',
       icon: <SwapOutlined style={{ fontSize: 32, color: '#13c2c2' }} />,
       module: 'converter' as const,
+    },
+    {
+      title: 'Escáner QR',
+      description: 'Escanea códigos QR y de barras desde cámara o imagen.',
+      icon: <QrcodeOutlined style={{ fontSize: 32, color: '#eb2f96' }} />,
+      module: 'qr-scanner' as const,
+    },
+    {
+      title: 'Editor de Imágenes',
+      description: 'Recorta, rota, aplica filtros y agrega texto a imágenes.',
+      icon: <ScissorOutlined style={{ fontSize: 32, color: '#fa541c' }} />,
+      module: 'image-editor' as const,
     },
   ];
 

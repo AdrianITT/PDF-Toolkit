@@ -49,4 +49,10 @@ export type AppModule =
   | 'compliance'
   | 'templates'
   | 'batch'
-  | 'asset-positioner';
+  | 'asset-positioner'
+  | 'qr-scanner'
+  | 'image-editor'
+  | 'image-viewer'
+  | 'document-viewer'
+  | 'batch-image'
+  | 'unit-converter';

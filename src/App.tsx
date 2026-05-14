@@ -17,6 +17,11 @@ import {
   FileProtectOutlined,
   PlayCircleOutlined,
   HomeOutlined,
+  QrcodeOutlined,
+  ScissorOutlined,
+  AppstoreOutlined,
+  FileWordOutlined,
+  CalculatorOutlined,
 } from '@ant-design/icons';
 import { DashboardPage } from './modules/dashboard/DashboardPage';
 import { PdfEditorPage } from './modules/pdf-editor/PdfEditorPage';
@@ -38,6 +43,12 @@ import { PdfACompliancePage } from './modules/compliance/PdfACompliancePage';
 import { TemplatesPage } from './modules/templates/TemplatesPage';
 import { BatchProcessingPage } from './modules/batch/BatchProcessingPage';
 import { AssetPositionerPage } from './modules/asset-positioner/AssetPositionerPage';
+import { QrScannerPage } from './modules/qr-scanner/QrScannerPage';
+import { ImageEditorPage } from './modules/image-editor/ImageEditorPage';
+import { ImageViewerPage } from './modules/image-viewer/ImageViewerPage';
+import { DocumentViewerPage } from './modules/document-viewer/DocumentViewerPage';
+import { BatchImageProcessorPage } from './modules/batch-image/BatchImageProcessorPage';
+import { UnitConverterPage } from './modules/unit-converter/UnitConverterPage';
 import { useAppStore } from './stores/appStore';
 import type { AppModule } from './types';
 import { Toolbar } from './components/Toolbar';
@@ -153,6 +164,36 @@ const modules: Record<AppModule, ModuleConfig> = {
     icon: <EditOutlined />,
     component: <AssetPositionerPage />,
   },
+  'qr-scanner': {
+    label: 'Escáner QR',
+    icon: <QrcodeOutlined />,
+    component: <QrScannerPage />,
+  },
+  'image-editor': {
+    label: 'Editor de Imágenes',
+    icon: <ScissorOutlined />,
+    component: <ImageEditorPage />,
+  },
+  'image-viewer': {
+    label: 'Visor de Imágenes',
+    icon: <AppstoreOutlined />,
+    component: <ImageViewerPage />,
+  },
+  'document-viewer': {
+    label: 'Visor de Documentos',
+    icon: <FileWordOutlined />,
+    component: <DocumentViewerPage />,
+  },
+  'batch-image': {
+    label: 'Procesador de Imágenes',
+    icon: <FileImageOutlined />,
+    component: <BatchImageProcessorPage />,
+  },
+  'unit-converter': {
+    label: 'Conversor de Unidades',
+    icon: <SwapOutlined />,
+    component: <UnitConverterPage />,
+  },
 };
 
 const lightThemeConfig = {
@@ -226,6 +267,7 @@ function App() {
       label: 'Edición & Creación',
       children: [
         { key: 'pdf-editor', icon: <FilePdfOutlined />, label: 'Editor PDF' },
+        { key: 'image-editor', icon: <ScissorOutlined />, label: 'Editor de Imágenes' },
         { key: 'annotations', icon: <HighlightOutlined />, label: 'Anotaciones' },
         { key: 'forms', icon: <FormOutlined />, label: 'Formularios' },
         { key: 'templates', icon: <FileTextOutlined />, label: 'Plantillas' },
@@ -264,6 +306,11 @@ function App() {
         { key: 'compliance', icon: <FileProtectOutlined />, label: 'Cumplimiento PDF/A' },
         { key: 'html-to-image', icon: <PictureOutlined />, label: 'Firma Correo' },
         { key: 'pdf-tools', icon: <ToolOutlined />, label: 'Herramientas PDF' },
+        { key: 'qr-scanner', icon: <QrcodeOutlined />, label: 'Escáner QR' },
+        { key: 'image-viewer', icon: <AppstoreOutlined />, label: 'Visor de Imágenes' },
+        { key: 'document-viewer', icon: <FileWordOutlined />, label: 'Visor Documentos' },
+        { key: 'batch-image', icon: <FileImageOutlined />, label: 'Procesador Imágenes' },
+        { key: 'unit-converter', icon: <CalculatorOutlined />, label: 'Conversor Unidades' },
       ],
     },
   ];
