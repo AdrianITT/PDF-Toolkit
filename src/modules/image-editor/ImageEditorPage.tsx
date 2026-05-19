@@ -190,10 +190,38 @@ export function ImageEditorPage() {
     const mimeType = format === 'jpeg' ? 'image/jpeg' : format === 'webp' ? 'image/webp' : 'image/png';
     const quality = format === 'jpeg' ? 0.92 : format === 'webp' ? 0.9 : undefined;
 
-    canvas.toBlob((blob) => {
+    canvas.toBlob(async (blob) => {
       if (blob) {
-        saveAs(blob, `edited-image-${Date.now()}.${format}`);
-        message.success('Imagen exportada correctamente');
+        const arrayBuffer = await blob.arrayBuffer();
+        const uint8Array = new Uint8Array(arrayBuffer);
+
+        let isTauri = false;
+        try {
+          const { invoke } = await import('@tauri-apps/api/core');
+          await invoke('get_pdf_info', { path: '' });
+          isTauri = true;
+        } catch { isTauri = false; }
+
+        if (isTauri) {
+          try {
+            const { save } = await import('@tauri-apps/plugin-dialog');
+            const { writeFile } = await import('@tauri-apps/plugin-fs');
+            const filePath = await save({
+              defaultPath: `edited-image-${Date.now()}.${format}`,
+              filters: [{ name: 'Imagen', extensions: [format] }]
+            });
+            if (filePath) {
+              await writeFile(filePath, uint8Array);
+              message.success('Imagen exportada correctamente');
+            }
+          } catch (err) {
+            console.error('Error en Tauri download:', err);
+            message.error('Error al guardar la imagen');
+          }
+        } else {
+          saveAs(blob, `edited-image-${Date.now()}.${format}`);
+          message.success('Imagen exportada correctamente');
+        }
       }
     }, mimeType, quality);
   };

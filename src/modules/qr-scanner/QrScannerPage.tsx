@@ -19,6 +19,7 @@ import {
   Col,
   Radio,
   ColorPicker,
+  Upload,
 } from 'antd';
 import {
   CameraOutlined,
@@ -272,7 +273,7 @@ function QrGeneratorPanel({
     }
   }, [contentType, textContent, urlContent, wifiSSID, wifiPassword, wifiEncryption, emailTo, emailSubject, emailBody, phoneNumber, smsNumber, smsMessage, qrSize, qrColorDark, qrColorLight, qrFormat, setGeneratedQR, setGeneratedHistory]);
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!generatedQR) return;
     
     console.log('[QR Download] qrFormat:', qrFormat);
@@ -280,14 +281,13 @@ function QrGeneratorPanel({
     
     const ext = qrFormat === 'svg' ? 'svg' : 'png';
     const mimeType = qrFormat === 'svg' ? 'image/svg+xml' : 'image/png';
+    const filename = `qrcode-${Date.now()}.${ext}`;
     
     try {
       let blob: Blob;
       if (qrFormat === 'svg') {
-        // SVG is already a string
         blob = new Blob([generatedQR], { type: mimeType });
       } else if (generatedQR.startsWith('data:')) {
-        // For PNG data URL, extract the base64 part and convert to blob
         const base64Data = generatedQR.split(',')[1];
         const binaryString = atob(base64Data);
         const bytes = new Uint8Array(binaryString.length);
@@ -296,14 +296,45 @@ function QrGeneratorPanel({
         }
         blob = new Blob([bytes], { type: mimeType });
       } else {
-        // Raw binary
         blob = new Blob([generatedQR], { type: mimeType });
       }
       
+      // Try to use Tauri API for desktop
+      let isTauri = false;
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('get_pdf_info', { path: '' });
+        isTauri = true;
+      } catch {
+        isTauri = false;
+      }
+      
+      if (isTauri && blob) {
+        // Desktop: Use Tauri file dialog
+        try {
+          const { save } = await import('@tauri-apps/plugin-dialog');
+          const filePath = await save({
+            defaultPath: filename,
+            filters: [{ name: 'Images', extensions: [ext] }]
+          });
+          
+          if (filePath) {
+            const { writeFile } = await import('@tauri-apps/plugin-fs');
+            const arrayBuffer = await blob.arrayBuffer();
+            await writeFile(filePath, new Uint8Array(arrayBuffer));
+            message.success('QR guardado en: ' + filePath);
+            return;
+          }
+        } catch (tauriErr) {
+          console.log('[QR Download] Tauri save failed, falling back to web:', tauriErr);
+        }
+      }
+      
+      // Web fallback
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `qrcode-${Date.now()}.${ext}`;
+      link.download = filename;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -591,13 +622,76 @@ function QrGeneratorPanel({
                               key="download"
                               size="small"
                               icon={<DownloadOutlined />}
-                              onClick={() => {
+                              onClick={async () => {
                                 if (item.format === 'svg' && item.svgContent) {
                                   const blob = new Blob([item.svgContent], { type: 'image/svg+xml' });
-                                  saveAs(blob, `qr-${item.timestamp.getTime()}.svg`);
+                                  const filename = `qr-${item.timestamp.getTime()}.svg`;
+                                  
+                                  // Check if Tauri
+                                  let isTauri = false;
+                                  try {
+                                    const { invoke } = await import('@tauri-apps/api/core');
+                                    await invoke('get_pdf_info', { path: '' });
+                                    isTauri = true;
+                                  } catch { isTauri = false; }
+                                  
+                                  if (isTauri) {
+                                    try {
+                                      const { save } = await import('@tauri-apps/plugin-dialog');
+                                      const { writeFile } = await import('@tauri-apps/plugin-fs');
+                                      const filePath = await save({
+                                        defaultPath: filename,
+                                        filters: [{ name: 'Images', extensions: ['svg'] }]
+                                      });
+                                      if (filePath) {
+                                        await writeFile(filePath, new Uint8Array(await blob.arrayBuffer()));
+                                        message.success('Guardado SVG');
+                                        return;
+                                      }
+                                    } catch { /* fallback to web */ }
+                                  }
+                                  
+                                  // Web fallback
+                                  saveAs(blob, filename);
                                   message.success('Descargado SVG');
                                 } else if (item.imageDataUrl) {
-                                  saveAs(item.imageDataUrl, `qr-${item.timestamp.getTime()}.png`);
+                                  const filename = `qr-${item.timestamp.getTime()}.png`;
+                                  
+                                  // For data URL, convert to blob first
+                                  const base64Data = item.imageDataUrl.split(',')[1];
+                                  const binaryString = atob(base64Data);
+                                  const bytes = new Uint8Array(binaryString.length);
+                                  for (let i = 0; i < binaryString.length; i++) {
+                                    bytes[i] = binaryString.charCodeAt(i);
+                                  }
+                                  const blob = new Blob([bytes], { type: 'image/png' });
+                                  
+                                  // Check if Tauri
+                                  let isTauri = false;
+                                  try {
+                                    const { invoke } = await import('@tauri-apps/api/core');
+                                    await invoke('get_pdf_info', { path: '' });
+                                    isTauri = true;
+                                  } catch { isTauri = false; }
+                                  
+                                  if (isTauri) {
+                                    try {
+                                      const { save } = await import('@tauri-apps/plugin-dialog');
+                                      const { writeFile } = await import('@tauri-apps/plugin-fs');
+                                      const filePath = await save({
+                                        defaultPath: filename,
+                                        filters: [{ name: 'Images', extensions: ['png'] }]
+                                      });
+                                      if (filePath) {
+                                        await writeFile(filePath, new Uint8Array(await blob.arrayBuffer()));
+                                        message.success('Guardado PNG');
+                                        return;
+                                      }
+                                    } catch { /* fallback to web */ }
+                                  }
+                                  
+                                  // Web fallback
+                                  saveAs(blob, filename);
                                   message.success('Descargado PNG');
                                 } else {
                                   message.warning('No hay imagen para descargar');
@@ -656,7 +750,6 @@ export function QrScannerPage() {
   const [currentResult, setCurrentResult] = useState<ScanResult | null>(null);
   const [showResultModal, setShowResultModal] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const [fileInputRef] = useState(() => ({ current: null as HTMLInputElement | null }));
   const scannerRef = useRef<any>(null);
 
   // Estados del generador de QR
@@ -739,7 +832,19 @@ export function QrScannerPage() {
           }
           
           if (!window.isSecureContext && window.location.protocol !== 'file:') {
-            setCameraError('La cámara requiere HTTPS o localhost. Estás usando: ' + window.location.protocol + '//' + window.location.host);
+            // Check if running in Tauri (desktop app)
+            let isTauri = false;
+            try {
+              const { invoke } = await import('@tauri-apps/api/core');
+              await invoke('get_pdf_info', { path: '' });
+              isTauri = true;
+            } catch { isTauri = false; }
+            
+            if (isTauri) {
+              setCameraError('La cámara en la app de escritorio puede tener limitaciones. Prueba usar "Subir imagen" para escanear códigos QR desde un archivo de imagen.');
+            } else {
+              setCameraError('La cámara requiere HTTPS o localhost. Estás usando: ' + window.location.protocol + '//' + window.location.host);
+            }
             setIsScanning(false);
             return;
           }
@@ -774,7 +879,17 @@ export function QrScannerPage() {
           const isNotSupported = errorMsg.includes('not supported') || errorMsg.includes('NotSupported');
           const isSecureContext = errorMsg.includes('secure context') || errorMsg.includes('HTTPS');
           
-          if (isPermissionDenied) {
+          // Check if in Tauri (desktop)
+          let isTauri = false;
+          try {
+            const { invoke } = await import('@tauri-apps/api/core');
+            await invoke('get_pdf_info', { path: '' });
+            isTauri = true;
+          } catch { isTauri = false; }
+          
+          if (isTauri && (errorMsg.includes('not supported') || errorMsg.includes('Camera streaming'))) {
+            setCameraError('La cámara no está disponible en la app de escritorio. Usa la pestaña "Subir imagen" para escanear códigos QR desde archivos.');
+          } else if (isPermissionDenied) {
             setCameraError('Permiso de cámara denegado. Haz clic en el icono de cámara en la barra del navegador y permite el acceso.');
           } else if (isNotFound) {
             setCameraError('No se detectó ninguna cámara. Conecta una cámara al dispositivo.');
@@ -808,24 +923,6 @@ export function QrScannerPage() {
     } else {
       setIsScanning(true);
     }
-  };
-
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    try {
-      const Html5Qrcode = (await import('html5-qrcode')).Html5Qrcode;
-      const html5QrCode = new Html5Qrcode('qr-reader-file');
-
-      const result = await html5QrCode.scanFile(file, true);
-      handleScanSuccess(result, { result: { format: { formatName: 'UNKNOWN' } } });
-    } catch (err: any) {
-      console.error('[QR Scanner] Error escaneando archivo:', err);
-      message.error('No se pudo detectar ningún código en la imagen');
-    }
-
-    event.target.value = '';
   };
 
   const copyToClipboard = (text: string) => {
@@ -971,40 +1068,51 @@ export function QrScannerPage() {
       ),
       children: (
         <div>
-          <input
-            type="file"
+          <Upload
             accept="image/*"
-            style={{ display: 'none' }}
-            ref={fileInputRef}
-            onChange={handleFileUpload}
-          />
-
-          <div
-            style={{
-              width: '100%',
-              maxWidth: 500,
-              margin: '0 auto',
-              minHeight: 300,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: 'var(--ant-color-bg-spotlight)',
-              borderRadius: 8,
-              border: '2px dashed var(--ant-color-border)',
-              cursor: 'pointer',
+            showUploadList={false}
+            onChange={async (info: any) => {
+              if (info.fileList.length === 0) return;
+              const file = info.file.originFileObj;
+              if (!file) return;
+              
+              try {
+                const Html5Qrcode = (await import('html5-qrcode')).Html5Qrcode;
+                const html5QrCode = new Html5Qrcode('qr-reader-file');
+                const result = await html5QrCode.scanFile(file, true);
+                handleScanSuccess(result, { result: { format: { formatName: 'UNKNOWN' } } });
+              } catch (err: any) {
+                console.error('[QR Scanner] Error escaneando archivo:', err);
+                message.error('No se pudo detectar ningún código en la imagen');
+              }
             }}
-            onClick={() => fileInputRef.current?.click()}
           >
-            <div style={{ textAlign: 'center' }}>
-              <FileImageOutlined style={{ fontSize: 48, color: '#1890ff' }} />
-              <Paragraph style={{ marginTop: 16 }}>
-                Haz clic para seleccionar una imagen
-              </Paragraph>
-              <Text type="secondary">
-                Formatos soportados: JPG, PNG, GIF, WebP
-              </Text>
+            <div
+              style={{
+                width: '100%',
+                maxWidth: 500,
+                margin: '0 auto',
+                minHeight: 300,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'var(--ant-color-bg-spotlight)',
+                borderRadius: 8,
+                border: '2px dashed var(--ant-color-border)',
+                cursor: 'pointer',
+              }}
+            >
+              <div style={{ textAlign: 'center' }}>
+                <FileImageOutlined style={{ fontSize: 48, color: '#1890ff' }} />
+                <Paragraph style={{ marginTop: 16 }}>
+                  Haz clic para seleccionar una imagen
+                </Paragraph>
+                <Text type="secondary">
+                  Formatos soportados: JPG, PNG, GIF, WebP
+                </Text>
+              </div>
             </div>
-          </div>
+          </Upload>
 
           <div
             id="qr-reader-file"

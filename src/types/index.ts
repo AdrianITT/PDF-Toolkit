@@ -55,4 +55,7 @@ export type AppModule =
   | 'image-viewer'
   | 'document-viewer'
   | 'batch-image'
-  | 'unit-converter';
+  | 'unit-converter'
+  | 'pdf-split-merge'
+  | 'pdf-compressor'
+  | 'image-compressor';

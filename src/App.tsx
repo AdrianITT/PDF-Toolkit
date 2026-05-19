@@ -22,6 +22,7 @@ import {
   AppstoreOutlined,
   FileWordOutlined,
   CalculatorOutlined,
+  CompressOutlined,
 } from '@ant-design/icons';
 import { DashboardPage } from './modules/dashboard/DashboardPage';
 import { PdfEditorPage } from './modules/pdf-editor/PdfEditorPage';
@@ -49,6 +50,9 @@ import { ImageViewerPage } from './modules/image-viewer/ImageViewerPage';
 import { DocumentViewerPage } from './modules/document-viewer/DocumentViewerPage';
 import { BatchImageProcessorPage } from './modules/batch-image/BatchImageProcessorPage';
 import { UnitConverterPage } from './modules/unit-converter/UnitConverterPage';
+import { PdfSplitMergePage } from './modules/pdf-split-merge/PdfSplitMergePage';
+import { PdfCompressorPage } from './modules/pdf-compressor/PdfCompressorPage';
+import { ImageCompressorPage } from './modules/image-compressor/ImageCompressorPage';
 import { useAppStore } from './stores/appStore';
 import type { AppModule } from './types';
 import { Toolbar } from './components/Toolbar';
@@ -191,8 +195,23 @@ const modules: Record<AppModule, ModuleConfig> = {
   },
   'unit-converter': {
     label: 'Conversor de Unidades',
-    icon: <SwapOutlined />,
+    icon: <CalculatorOutlined />,
     component: <UnitConverterPage />,
+  },
+  'pdf-split-merge': {
+    label: 'PDF Split/Merge',
+    icon: <ScissorOutlined />,
+    component: <PdfSplitMergePage />,
+  },
+  'pdf-compressor': {
+    label: 'Compresor de PDFs',
+    icon: <CompressOutlined />,
+    component: <PdfCompressorPage />,
+  },
+  'image-compressor': {
+    label: 'Compresor de Imágenes',
+    icon: <FileImageOutlined />,
+    component: <ImageCompressorPage />,
   },
 };
 

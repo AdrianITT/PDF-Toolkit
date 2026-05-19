@@ -214,14 +214,22 @@ export function UnitConverterPage() {
   const currentMeasurement = MEASUREMENT_TYPES.find(m => m.value === measurementType);
   const currentUnits = currentMeasurement?.units || [];
 
+  const handleMeasurementTypeChange = (val: string) => {
+    setMeasurementType(val);
+    const type = MEASUREMENT_TYPES.find(m => m.value === val);
+    if (type && type.units.length > 0) {
+      setUnit(type.units[0].value);
+    }
+    setResults(null);
+    setError(null);
+  };
+
   const handleConvert = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     setResults(null);
 
     try {
-      console.log('[UnitConverter] Convirtiendo:', amount, unit, 'tipo:', measurementType);
-      
       const response = await fetch(
         `${API_URL}?amount=${amount}&unit=${unit}`,
         {
@@ -240,24 +248,22 @@ export function UnitConverterPage() {
       }
 
       const data = await response.json();
-      console.log('[UnitConverter] Resultado:', data);
-      
       setResults(data);
       message.success('Conversión realizada');
     } catch (err: any) {
-      console.error('[UnitConverter] Error:', err);
       setError(err.message || 'Error al convertir');
       message.error(err.message || 'Error al convertir');
     } finally {
       setIsLoading(false);
     }
-  }, [amount, unit, measurementType]);
+  }, [amount, unit]);
 
   const handleClear = () => {
     setResults(null);
     setError(null);
     setAmount(1);
-    setUnit('meter');
+    const type = MEASUREMENT_TYPES.find(m => m.value === measurementType);
+    if (type) setUnit(type.units[0].value);
   };
 
   const handleCopy = () => {
@@ -279,7 +285,6 @@ export function UnitConverterPage() {
     if (Math.abs(value) < 0.0001 && value !== 0) {
       return value.toExponential(4);
     }
-    // Redondear a 6 decimales significativos
     return parseFloat(value.toPrecision(6)).toString();
   };
 
@@ -296,6 +301,11 @@ export function UnitConverterPage() {
           Conversor de Unidades
         </span>
       }
+      extra={
+        <Button icon={<ClearOutlined />} onClick={handleClear}>
+          Limpiar
+        </Button>
+      }
     >
       <Row gutter={24}>
         <Col xs={24} lg={12}>
@@ -307,15 +317,7 @@ export function UnitConverterPage() {
                 </Text>
                 <Select
                   value={measurementType}
-                  onChange={(val) => {
-                    setMeasurementType(val);
-                    const type = MEASUREMENT_TYPES.find(m => m.value === val);
-                    if (type && type.units.length > 0) {
-                      setUnit(type.units[0].value);
-                    }
-                    setResults(null);
-                    setError(null);
-                  }}
+                  onChange={handleMeasurementTypeChange}
                   style={{ width: '100%' }}
                   options={MEASUREMENT_TYPES.map(m => ({
                     value: m.value,
@@ -376,22 +378,13 @@ export function UnitConverterPage() {
             title="Resultados"
             extra={
               results && (
-                <Space>
-                  <Button
-                    icon={<CopyOutlined />}
-                    onClick={handleCopy}
-                    size="small"
-                  >
-                    Copiar
-                  </Button>
-                  <Button
-                    icon={<ClearOutlined />}
-                    onClick={handleClear}
-                    size="small"
-                  >
-                    Limpiar
-                  </Button>
-                </Space>
+                <Button
+                  icon={<CopyOutlined />}
+                  onClick={handleCopy}
+                  size="small"
+                >
+                  Copiar
+                </Button>
               )
             }
           >
