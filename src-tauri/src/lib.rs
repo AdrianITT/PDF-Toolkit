@@ -18,6 +18,7 @@ pub fn run() {
             commands::signature::parse_certificate,
             commands::signature::sign_document_hash,
             commands::signature::get_certificate_public_key,
+            commands::zip::create_zip,
         ])
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())

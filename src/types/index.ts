@@ -58,4 +58,5 @@ export type AppModule =
   | 'unit-converter'
   | 'pdf-split-merge'
   | 'pdf-compressor'
-  | 'image-compressor';
+  | 'image-compressor'
+  | 'zip-compressor';

@@ -23,6 +23,7 @@ import {
   FileWordOutlined,
   CalculatorOutlined,
   CompressOutlined,
+  FileZipOutlined,
 } from '@ant-design/icons';
 import { DashboardPage } from './modules/dashboard/DashboardPage';
 import { PdfEditorPage } from './modules/pdf-editor/PdfEditorPage';
@@ -53,6 +54,7 @@ import { UnitConverterPage } from './modules/unit-converter/UnitConverterPage';
 import { PdfSplitMergePage } from './modules/pdf-split-merge/PdfSplitMergePage';
 import { PdfCompressorPage } from './modules/pdf-compressor/PdfCompressorPage';
 import { ImageCompressorPage } from './modules/image-compressor/ImageCompressorPage';
+import { ZipCompressorPage } from './modules/zip-compressor/ZipCompressorPage';
 import { useAppStore } from './stores/appStore';
 import type { AppModule } from './types';
 import { Toolbar } from './components/Toolbar';
@@ -213,6 +215,11 @@ const modules: Record<AppModule, ModuleConfig> = {
     icon: <FileImageOutlined />,
     component: <ImageCompressorPage />,
   },
+  'zip-compressor': {
+    label: 'Compresor ZIP',
+    icon: <FileZipOutlined />,
+    component: <ZipCompressorPage />,
+  },
 };
 
 const lightThemeConfig = {
@@ -312,6 +319,9 @@ function App() {
         { key: 'image-extractor', icon: <FileImageOutlined />, label: 'Extraer Imágenes' },
         { key: 'converter', icon: <SwapOutlined />, label: 'Convertidor' },
         { key: 'ocr', icon: <ScanOutlined />, label: 'OCR' },
+        { key: 'pdf-compressor', icon: <CompressOutlined />, label: 'Compresor de PDFs' },
+        { key: 'image-compressor', icon: <FileImageOutlined />, label: 'Compresor de Imágenes' },
+        { key: 'zip-compressor', icon: <FileZipOutlined />, label: 'Compresor ZIP' },
         { key: 'batch', icon: <PlayCircleOutlined />, label: 'Procesamiento Lote' },
       ],
     },
@@ -330,6 +340,7 @@ function App() {
         { key: 'document-viewer', icon: <FileWordOutlined />, label: 'Visor Documentos' },
         { key: 'batch-image', icon: <FileImageOutlined />, label: 'Procesador Imágenes' },
         { key: 'unit-converter', icon: <CalculatorOutlined />, label: 'Conversor Unidades' },
+        { key: 'pdf-split-merge', icon: <ScissorOutlined />, label: 'PDF Split/Merge' },
       ],
     },
   ];

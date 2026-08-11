@@ -27,6 +27,8 @@ tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
 lopdf = "0.34"
 flate2 = "1.0"
+zip = { version = "2", default-features = false, features = ["deflate"] }
+image = { version = "0.25", default-features = false, features = ["jpeg"] }
 openssl = { version = "0.10", features = ["vendored"] }
 base64 = "0.22"
 chrono = "0.4"
